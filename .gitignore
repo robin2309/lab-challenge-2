@@ -1,0 +1,29 @@
+# Dépendances
+node_modules/
+
+# Build
+dist/
+*.tsbuildinfo
+.vite/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environnement
+.env
+.env.*
+!.env.example
+
+# Éditeurs / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Fichiers à supprimer (corbeille de travail)
+_to_delete/
+
+# Dépôt git imbriqué (clone vide)
+lab-challenge-2/

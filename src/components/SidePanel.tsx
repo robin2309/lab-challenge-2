@@ -48,10 +48,10 @@ export default function SidePanel({ course, onAddLudo, onDiscover, onJump, onJum
   })
 
   return (
-    <div className={'panel-wrap ' + className} style={style}>
+    <div className={'panel-wrap ' + (tab === 'brief' ? 'second ' : '') + className} style={style}>
       <div className="panel-tabs">
-        <button className={'panel-tab' + (tab === 'sommaire' ? ' on' : '')} onClick={() => setTab('sommaire')}>Sommaire</button>
-        <button className={'panel-tab' + (tab === 'brief' ? ' on' : '')} onClick={() => setTab('brief')}>En bref</button>
+        <button className={'panel-tab t1' + (tab === 'sommaire' ? ' on' : '')} onClick={() => setTab('sommaire')}>Sommaire</button>
+        <button className={'panel-tab t2' + (tab === 'brief' ? ' on' : '')} onClick={() => setTab('brief')}>En bref</button>
       </div>
       <div className="panel-body">
         {tab === 'brief' ? (

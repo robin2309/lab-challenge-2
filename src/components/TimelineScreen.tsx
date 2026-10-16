@@ -172,12 +172,28 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
 
   const innerW = trayOpen ? layout.width / 0.84 : layout.width
 
+  /* ---------- scroll en fondu (clic dans le sommaire) ---------- */
+  const fadeNext = useRef(false)
+  const fadeTimer = useRef<number>(0)
+  const fadeScrollTo = (left: number) => {
+    const sc = scroller.current; if (!sc) return
+    if (reducedMotion()) { sc.scrollTo({ left }); return }
+    window.clearTimeout(fadeTimer.current)
+    sc.style.transition = 'opacity .18s ease'
+    sc.style.opacity = '0'
+    fadeTimer.current = window.setTimeout(() => {
+      sc.scrollTo({ left, behavior: 'instant' as ScrollBehavior })
+      requestAnimationFrame(() => { sc.style.transition = 'opacity .32s ease'; sc.style.opacity = '1' })
+    }, 190)
+  }
+
   /* ---------- scroll vers l'élément ajouté ---------- */
   useEffect(() => {
     if (!jump || !scroller.current) return
     const el = jump === 'end' ? null : scroller.current.querySelector<HTMLElement>(`[data-rid="${jump}"]`)
     const target = el ? el.offsetLeft * (trayOpen ? 0.84 : 1) - 520 : scroller.current.scrollWidth
-    scroller.current.scrollTo({ left: target, behavior: 'smooth' })
+    if (fadeNext.current) { fadeNext.current = false; fadeScrollTo(target) }
+    else scroller.current.scrollTo({ left: target, behavior: 'smooth' })
     setJump(null)
   }, [jump, course])
 
@@ -298,6 +314,17 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
 
   return (
     <>
+      <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden>
+        <filter id="grain-shadow" x="-30%" y="-40%" width="160%" height="190%" colorInterpolationFilters="sRGB">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="bg" />
+          <feGaussianBlur in="SourceAlpha" stdDeviation="14" result="b" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="1" seed="7" result="n" />
+          <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" result="na" />
+          <feComposite in="b" in2="na" operator="arithmetic" k1="0" k2="1.7" k3="-1" k4="0" result="t" />
+          <feComponentTransfer in="t" result="stip"><feFuncA type="linear" slope="30" intercept="0" /></feComponentTransfer>
+          <feComposite in="bg" in2="stip" operator="in" />
+        </filter>
+      </svg>
       <Navbar logo="short" onHome={onHome} active="create" />
 
       <h1 className={'course-title' + (introOn ? ' in-fade' : '')} style={delayed(0.1)}>{course.title}</h1>
@@ -308,13 +335,13 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
         course={course}
         onAddLudo={() => setTarget({ mode: 'append', type: 'ludo', sessionId: active })}
         onDiscover={() => setTarget({ mode: 'append', type: 'ludo', sessionId: active })}
-        onJump={(id) => { setJump(id); setSelectedId(id) }}
+        onJump={(id) => { fadeNext.current = true; setJump(id); setSelectedId(id) }}
         onMove={moveTo}
         onGenerate={startGen}
         onJumpSession={(id) => {
           const l = layout.sessions.find((x) => x.s.id === id); if (!l) return
           setActive(id)
-          scroller.current?.scrollTo({ left: Math.max(0, (l.sx - 420) * (trayOpen ? 0.84 : 1)), behavior: 'smooth' })
+          fadeScrollTo(Math.max(0, (l.sx - 420) * (trayOpen ? 0.84 : 1)))
         }}
         hoverId={hoverId} selectedId={selectedId} onHover={setHoverId}
       />

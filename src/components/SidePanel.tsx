@@ -12,6 +12,8 @@ interface Props {
   onDiscover: () => void
   onJump: (resourceId: string) => void
   onJumpSession: (sessionId: string) => void
+  onGenerate: () => void
+  onMove: (resourceId: string, toSessionId: string, index: number) => void
   hoverId: string | null
   selectedId: string | null
   onHover: (id: string | null) => void
@@ -19,7 +21,11 @@ interface Props {
   style?: React.CSSProperties
 }
 
-export default function SidePanel({ course, onAddLudo, onDiscover, onJump, onJumpSession, hoverId, selectedId, onHover, className = '', style }: Props) {
+export default function SidePanel({ course, onAddLudo, onDiscover, onJump, onJumpSession, onGenerate, onMove, hoverId, selectedId, onHover, className = '', style }: Props) {
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [over, setOver] = useState<{ sid: string; index: number } | null>(null)
+  const endDrag = () => { setDragId(null); setOver(null) }
+  const drop = () => { if (dragId && over) onMove(dragId, over.sid, over.index); endDrag() }
   const [tab, setTab] = useState<'brief' | 'sommaire'>('sommaire')
 
   const hoverType = course.sessions.flatMap((x) => x.resources).find((r) => r.id === (hoverId ?? selectedId))?.type
@@ -87,17 +93,25 @@ export default function SidePanel({ course, onAddLudo, onDiscover, onJump, onJum
         ) : (
           <>
             {course.sessions.map((s, i) => (
-              <div key={s.id}>
+              <div key={s.id} onDragOver={(e) => { if (!dragId) return; e.preventDefault(); setOver({ sid: s.id, index: s.resources.length }) }} onDrop={(e) => { e.preventDefault(); drop() }}>
                 <button className="summary-session" onClick={() => onJumpSession(s.id)} title="Aller à cette séance">Séance {i + 1} <span>{s.resources.reduce((a, r) => a + r.duration, 0)} min.</span></button>
-                {s.resources.length === 0 && <div style={{ fontSize: 17, color: '#8a7d68' }}>Aucune ressource</div>}
-                {s.resources.map((r) => (
-                  <button key={r.id} className={'summary-item' + (hoverId === r.id ? ' hot' : '') + (selectedId === r.id ? ' sel' : '') + (r.empty ? ' empty' : '')}
+                {s.resources.length === 0 && <div className={'summary-empty' + (over?.sid === s.id ? ' drop' : '')}>{dragId ? 'Déposer ici' : 'Aucune ressource'}</div>}
+                {s.resources.map((r, ri) => (
+                  <button key={r.id} draggable onDragStart={(e) => { setDragId(r.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', r.id) }} onDragEnd={endDrag}
+                    onDragOver={(e) => { if (!dragId) return; e.preventDefault(); e.stopPropagation(); const b = e.currentTarget.getBoundingClientRect(); setOver({ sid: s.id, index: e.clientY < b.top + b.height / 2 ? ri : ri + 1 }) }}
+                    className={'summary-item' + (dragId === r.id ? ' dragging' : '') + (over?.sid === s.id && dragId && over.index === ri ? ' drop-before' : '') + (over?.sid === s.id && dragId && over.index === ri + 1 && ri === s.resources.length - 1 ? ' drop-after' : '') + (hoverId === r.id ? ' hot' : '') + (selectedId === r.id ? ' sel' : '') + (r.empty ? ' empty' : '')}
                     onClick={() => onJump(r.id)} onMouseEnter={() => onHover(r.id)} onMouseLeave={() => onHover(null)} onFocus={() => onHover(r.id)} onBlur={() => onHover(null)}>
-                    <span>{r.empty ? 'Emplacement vide' : r.title}</span><span>{r.empty ? '—' : `${r.duration} min.`}</span>
+                    <span className="grip" aria-hidden>⋮⋮</span><span className="si-title">{r.empty ? 'Emplacement vide' : r.title}</span><span>{r.empty ? '—' : `${r.duration} min.`}</span>
                   </button>
                 ))}
               </div>
             ))}
+            <div className="gen-sticky">
+              <button className="gen-btn" onClick={onGenerate}>
+                <span><em>Étape finale</em><b>Générer les supports</b></span>
+                <i aria-hidden>→</i>
+              </button>
+            </div>
           </>
         )}
       </div>

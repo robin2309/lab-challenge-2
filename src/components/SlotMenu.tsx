@@ -47,7 +47,7 @@ export default function SlotMenu({ mode, type: t0, subject, heading, sessionLabe
       onDragOver={(e) => { e.preventDefault(); setDrag(true) }} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDrag(false) }}
       onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) onFile(f) }}>
       {drag && <div className="sm-drop">Déposez votre fichier pour l’ajouter ici</div>}
-      {mode !== 'replace' && (
+      {(
         <div className="sm-tabs" role="tablist">
           {TABS.map((t) => (
             <button key={t.type} role="tab" aria-selected={type === t.type} className={'sm-tab' + (type === t.type ? ' on' : '')} onClick={() => { setType(t.type); setMore(false) }}>
@@ -60,7 +60,7 @@ export default function SlotMenu({ mode, type: t0, subject, heading, sessionLabe
         <div className="sm-head">
           <div className="sm-title">
             <h3>{heading}</h3>
-            <p>{mode === 'replace' ? `Autres ${TYPE_LABEL[type].toLowerCase()} adaptés à la ${sessionLabel}` : `${TYPE_LABEL[type]} adaptés à la ${sessionLabel}`}</p>
+            <p>{mode === 'replace' && type === t0 ? `Autres ${TYPE_LABEL[type].toLowerCase()} adaptés à la ${sessionLabel}` : `${TYPE_LABEL[type]} adaptés à la ${sessionLabel}`}</p>
           </div>
           <input ref={input} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = '' }} />
           <button className="sm-own" onClick={() => input.current?.click()} title="Choisir un fichier sur votre ordinateur (ou le glisser ici)"><span>+</span> Importer ma ressource</button>

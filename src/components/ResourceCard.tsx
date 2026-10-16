@@ -33,15 +33,16 @@ interface Props {
   onClear: () => void
   onRemove: () => void
   conflict?: boolean
+  pulse?: boolean
   onDropFile: (f: File) => void
 }
 
-export default function ResourceCard({ resource: r, left, top, hot, selected, onHover, onSelect, onConsult, onReplace, onClear, onRemove, onDropFile, conflict }: Props) {
+export default function ResourceCard({ resource: r, left, top, hot, selected, onHover, onSelect, onConsult, onReplace, onClear, onRemove, onDropFile, conflict, pulse }: Props) {
   const [over, setOver] = useState(false)
   const fan = r.aids.slice(0, 3)
   return (
     <div
-      className={'rcard' + (conflict ? ' conflict' : '') + (over ? ' dropping' : '') + (hot ? ' hot' : '') + (selected ? ' selected' : '') + (r.empty ? ' empty' : '')}
+      className={'rcard' + (pulse ? ' gen-pulse' : '') + (conflict ? ' conflict' : '') + (over ? ' dropping' : '') + (hot ? ' hot' : '') + (selected ? ' selected' : '') + (r.empty ? ' empty' : '')}
       data-rid={r.id} style={{ left, top }}
       onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)}
       onFocus={() => onHover(true)} onBlur={() => onHover(false)}

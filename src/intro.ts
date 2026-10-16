@@ -1,17 +1,17 @@
 /**
  * Chorégraphie de l'apparition de la ligne (écran 2). Temps en secondes depuis l'arrivée sur l'écran.
  *  1. la ligne plate de l'écran 1 s'allonge (ses fondus de bout s'écartent)
- *  2. elle se met à onduler : une vague d'amplitude progresse de gauche à droite
- *  3. chaque ressource apparaît en fondu quand l'ondulation l'a atteinte
+ *  2. sur toute sa longueur à la fois, elle passe de droite à sinusoïdale : les pics montent (léger rebond)
+ *  3. les ressources apparaissent ensuite une à une en fondu, de gauche à droite
  */
 export const INTRO = {
   extendStart: 0.15,
   extendDur: 0.95,
-  undStart: 1.0,
-  undDur: 2.5,
-  ramp: 300,       // largeur (px) sur laquelle l'amplitude monte progressivement
-  frontFrom: -150, // position de départ du front d'ondulation (hors écran à gauche : l'onde entre par la gauche)
-  end: 4.3,        // fin de la séquence (tout est en place)
+  undStart: 0.9,
+  undDur: 1.9,
+  resStart: 2.1,   // première ressource
+  resSpread: 1.6,  // durée sur laquelle les ressources visibles se succèdent
+  end: 4.4,        // fin de la séquence (tout est en place)
 }
 
 /** y (maquette) du centre de la ligne plate de l'écran 1 : l'écran 2 en part pour onduler. */
@@ -24,22 +24,18 @@ export const reducedMotion = () =>
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 export const smooth01 = (v: number) => { const t = clamp01(v); return t * t * (3 - 2 * t) }
+export const easeInOut = (v: number) => -(Math.cos(Math.PI * clamp01(v)) - 1) / 2
 export const easeOutCubic = (v: number) => 1 - Math.pow(1 - clamp01(v), 3)
-const easeInOutSine = (v: number) => -(Math.cos(Math.PI * clamp01(v)) - 1) / 2
 
-/** Position du front d'ondulation à l'instant t. */
-export const frontAt = (t: number, viewW: number) =>
-  INTRO.frontFrom + easeInOutSine((t - INTRO.undStart) / INTRO.undDur) * (viewW + INTRO.ramp + 100 - INTRO.frontFrom)
+/** Facteur d'amplitude (0 = ligne plate, 1 = sinusoïde) : tous les pics montent ensemble, avec un léger rebond. */
+export function amplitudeAt(t: number): number {
+  const v = clamp01((t - INTRO.undStart) / INTRO.undDur)
+  const c1 = 0.8, c3 = c1 + 1
+  return 1 + c3 * Math.pow(v - 1, 3) + c1 * Math.pow(v - 1, 2) // easeOutBack
+}
 
-/** Instant où une ressource située en x doit apparaître (le front l'a dépassée aux 2/3 de la rampe). */
+/** Instant où une ressource située en x apparaît : l'une après l'autre, de gauche à droite. */
 export function appearAt(x: number, viewW: number): number {
-  const target = x + INTRO.ramp * 0.66
-  const tMax = INTRO.undStart + INTRO.undDur
-  if (frontAt(tMax, viewW) < target) return tMax - 0.2
-  let lo = INTRO.undStart, hi = tMax
-  for (let i = 0; i < 24; i++) {
-    const mid = (lo + hi) / 2
-    if (frontAt(mid, viewW) >= target) hi = mid; else lo = mid
-  }
-  return hi
+  const p = clamp01((x - 400) / Math.max(1, viewW - 400))
+  return INTRO.resStart + p * INTRO.resSpread
 }

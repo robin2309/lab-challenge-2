@@ -8,7 +8,7 @@ import GenerateModal from './GenerateModal'
 import Stepper from './Stepper'
 import ResourceCard from './ResourceCard'
 import WaveCanvas from './WaveCanvas'
-import { INTRO, appearAt, reducedMotion } from '../intro'
+import { INTRO, appearAt, easeInOut, reducedMotion } from '../intro'
 import { Circle, Star, Triangle } from './Decor'
 import { IconX, TypeIcon } from './Icons'
 import { alternativesFor, coherentFor, emptySlot, makeResource, ownResource, resolveTitle, uid, type CatalogItem } from '../data/catalog'
@@ -41,6 +41,9 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
   const [detailId, setDetailId] = useState<string | null>(null)
   const [own, setOwn] = useState<Target | null>(null)
   const [genOpen, setGenOpen] = useState(false)
+  const [genRun, setGenRun] = useState(false)
+  const [passed, setPassed] = useState(0)
+  const [genStep, setGenStep] = useState(0)
   const [pending, setPending] = useState<{ file: File; title: string; type: ResourceType } | null>(null)
   const [mine, setMine] = useState<CatalogItem[]>([]) // « Mes ressources » (en mémoire, le temps de la session)
   const [toast, setToast] = useState<{ msg: string; undo?: () => void } | null>(null)
@@ -116,6 +119,21 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
     setPending({ file, title: file.name.replace(/\.[^.]+$/, ''), type })
     setOwn(t)
   }
+  /** Glisser-déposer depuis le Sommaire : déplace une ressource dans sa séance ou vers une autre. */
+  const moveTo = (id: string, toSessionId: string, index: number) => {
+    const prev = course
+    const ss = course.sessions.map((s) => ({ ...s, resources: [...s.resources] }))
+    const from = ss.find((s) => s.resources.some((r) => r.id === id)); const to = ss.find((s) => s.id === toSessionId)
+    if (!from || !to) return
+    const i = from.resources.findIndex((r) => r.id === id)
+    const [r] = from.resources.splice(i, 1)
+    const at = from === to && i < index ? index - 1 : index
+    if (from === to && at === i) return
+    to.resources.splice(Math.max(0, Math.min(at, to.resources.length)), 0, r)
+    setCourse({ ...course, sessions: ss })
+    setActive(toSessionId)
+    say(from === to ? `« ${r.title} » déplacée.` : `« ${r.title} » déplacée vers la séance ${ss.indexOf(to) + 1}.`, () => setCourse(prev))
+  }
   const setMenuClosed = () => { setTarget(null); setDetailId(null) }
   const place = (t: Target, res0: Resource) => {
     const res = { ...res0, rev: ++rev.current } // la ressource la plus récemment choisie fait foi en cas d’incohérence
@@ -179,7 +197,8 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      if (genOpen) setGenOpen(false)
+      if (genRun) setGenRun(false)
+      else if (genOpen) setGenOpen(false)
       else if (own) setOwn(null)
       else if (detailId) setDetailId(null)
       else if (target) setTarget(null)
@@ -187,7 +206,7 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [genOpen, own, detailId, target])
+  }, [genRun, genOpen, own, detailId, target])
 
   const selectCard = (id: string) => {
     const f = find(id); if (!f) return
@@ -235,6 +254,45 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
     } else clearSlot(c.stale.id)
   }
 
+  /* ---------- génération des supports : un point parcourt la timeline ---------- */
+  const dotRef = useRef<HTMLDivElement>(null)
+  const trailRef = useRef<SVGPathElement>(null)
+  const order = useMemo(() => layout.sessions.flatMap((l) => l.slots.map((sl) => ({ id: sl.r.id, x: sl.x }))), [layout])
+  const passedIds = useMemo(() => new Set(genRun ? order.slice(0, passed).map((o) => o.id) : []), [genRun, order, passed])
+  const startGen = () => {
+    setSelectedId(null); setTarget(null); setDetailId(null)
+    if (reducedMotion()) { setGenOpen(true); return }
+    setPassed(0); setGenStep(0); setGenRun(true)
+  }
+  useEffect(() => {
+    if (!genRun) return
+    const sc = scroller.current
+    const x0 = 64, x1 = layout.endX
+    const dur = Math.min(7, Math.max(3.2, (x1 - x0) / 750)) * 1000
+    const t0 = performance.now()
+    let raf = 0, lastPassed = 0, lastStep = 0
+    const frame = () => {
+      const p = easeInOut((performance.now() - t0) / dur)
+      const x = x0 + (x1 - x0) * p
+      const y = waveY(x, layout.firstX)
+      if (dotRef.current) dotRef.current.style.transform = `translate(${x - 20}px, ${y - 20}px)`
+      if (trailRef.current) {
+        let d = `M${x0} ${waveY(x0, layout.firstX)}`
+        for (let xx = x0 + 10; xx < x; xx += 10) d += ` L${xx} ${waveY(xx, layout.firstX)}`
+        trailRef.current.setAttribute('d', d + ` L${x} ${y}`)
+      }
+      if (sc) sc.scrollLeft = Math.max(0, x - 820)
+      const n = order.filter((o) => o.x - 60 <= x).length
+      if (n !== lastPassed) { lastPassed = n; setPassed(n) }
+      const st = p < 0.34 ? 0 : p < 0.67 ? 1 : 2
+      if (st !== lastStep) { lastStep = st; setGenStep(st) }
+      if (p >= 1) { setGenRun(false); setGenOpen(true); return }
+      raf = requestAnimationFrame(frame)
+    }
+    frame()
+    return () => cancelAnimationFrame(raf)
+  }, [genRun])
+
   const isCrest = (x: number) => Math.round((x - layout.firstX) / SPACING) % 2 !== 0
   let gIdx = 0
 
@@ -251,6 +309,8 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
         onAddLudo={() => setTarget({ mode: 'append', type: 'ludo', sessionId: active })}
         onDiscover={() => setTarget({ mode: 'append', type: 'ludo', sessionId: active })}
         onJump={(id) => { setJump(id); setSelectedId(id) }}
+        onMove={moveTo}
+        onGenerate={startGen}
         onJumpSession={(id) => {
           const l = layout.sessions.find((x) => x.s.id === id); if (!l) return
           setActive(id)
@@ -275,6 +335,14 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
           </svg>
           <WaveCanvas width={innerW} viewW={viewW} height={990} cy={CY} amp={AMP} firstX={layout.firstX} spacing={SPACING} intro={introOn} />
 
+          {genRun && (
+            <>
+              <svg width={innerW} height={990} style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: 7 }}>
+                <path ref={trailRef} fill="none" stroke="#fff" strokeOpacity=".75" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <div ref={dotRef} className="gen-dot" aria-hidden />
+            </>
+          )}
           {conflicts.length > 0 && (
             <svg width={innerW} height={990} style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}>
               {conflicts.map((c) => {
@@ -347,7 +415,7 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
                       {gi % 3 === 1 && <Circle style={{ left: x + 70, top: top + 110, width: 128, height: 128, zIndex: 0 }} color="#71e5b6" />}
                       <ResourceCard resource={r} left={x - 140} top={top} hot={hoverId === r.id || selectedId === r.id} selected={selectedId === r.id}
                         onHover={(on) => setHoverId((h) => (on ? r.id : h === r.id ? null : h))}
-                        onSelect={() => selectCard(r.id)} onConsult={() => setDetailId(r.id)} onReplace={() => openReplace(r.id)} onClear={() => clearSlot(r.id)} conflict={staleIds.has(r.id)}
+                        onSelect={() => selectCard(r.id)} onConsult={() => setDetailId(r.id)} onReplace={() => openReplace(r.id)} onClear={() => clearSlot(r.id)} conflict={staleIds.has(r.id)} pulse={passedIds.has(r.id)}
                         onRemove={() => removeSlot(r.id)} onDropFile={(f) => importFile(f, { mode: 'fill', type: r.type, sessionId: s.id, id: r.id })} />
                       <div style={{ position: 'absolute', left: x - NODE_R, top: y - NODE_R, width: NODE_R * 2, height: NODE_R * 2, borderRadius: '50%', background: '#e3cfa6', color: '#fff', display: 'grid', placeItems: 'center', pointerEvents: 'none', boxShadow: '0 2px 6px rgba(80,50,10,.18)' }}>
                         <div style={{ width: 28, height: 28 }}><TypeIcon type={r.type} /></div>
@@ -405,16 +473,16 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
         />
       )}
 
-      <button className={'generate' + (introOn ? ' in-up' : '')} style={delayed(1.3)} onClick={() => setGenOpen(true)}>
-        <em>Étape finale</em>
-        <b>Générer les supports <i aria-hidden>→</i></b>
-        <span>Un guide pour le prof, un support de projection avec les vidéos intégrées, et les fichiers à distribuer.</span>
-      </button>
-
       <Stepper step={2} className={introOn ? 'in-fade' : ''} style={delayed(0.3)} />
 
       {toast && <div className="toast-box" role="status">{toast.msg}{toast.undo && <button onClick={() => { toast.undo?.(); setToast(null) }}>Annuler</button>}</div>}
 
+      {genRun && (
+        <div className="gen-status" role="status">
+          <i className="spin" />
+          {['Rédaction du guide d’accompagnement…', 'Intégration des vidéos au support de projection…', 'Mise en page des fiches élèves…'][genStep]}
+        </div>
+      )}
       {genOpen && <GenerateModal title={course.title} onClose={() => setGenOpen(false)} />}
       {detailRes && (
         <ResourceDetail

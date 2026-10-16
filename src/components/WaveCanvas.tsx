@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react'
-import { FLAT_Y, INTRO, TIMELINE_TOP, easeOutCubic, frontAt, smooth01 } from '../intro'
+import { FLAT_Y, INTRO, TIMELINE_TOP, amplitudeAt, easeOutCubic } from '../intro'
 
 /**
  * Trait de la ligne : on réutilise la vraie texture du trait de la maquette (assets/wave-flat.png,
@@ -154,8 +154,8 @@ export default function WaveCanvas({ width, viewW, height, cy, amp, firstX, spac
         const t = (performance.now() - t0) / 1000
         if (t >= INTRO.end) { finalDraw(img); return }
         const ext = easeOutCubic((t - INTRO.extendStart) / INTRO.extendDur)
-        const front = frontAt(t, viewW)
-        const yAt = (x: number) => base + smooth01((front - x) / INTRO.ramp) * (waveAt(x) - base)
+        const amt = amplitudeAt(t)
+        const yAt = (x: number) => base + amt * (waveAt(x) - base)
         ctx.setTransform(1, 0, 0, 1, 0, 0)
         ctx.clearRect(0, 0, slab * k, height * k)
         ctx.setTransform(k, 0, 0, k, 0, 0)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Resource, ResourceType } from '../types'
-import { AID_LABEL } from '../types'
+import { AID_LABEL, TYPE_COLOR } from '../types'
 import { IconEdit, IconSwap, IconTrash, IconX, TypeIcon } from './Icons'
 
 export const FakeThumb = ({ type, title }: { type: ResourceType; title?: string }) => (
@@ -20,7 +20,6 @@ export const FakeThumb = ({ type, title }: { type: ResourceType; title?: string 
   </div>
 )
 
-const TYPE_COLOR: Record<string, string> = { video: '#e87f5a', ludo: '#6fd3c3', rituel: '#e9cf55', texte: '#cdb184' }
 const domCache = new Map<string, string>()
 
 /* couleur dominante (moyenne pondérée par la saturation) d'une image locale */
@@ -73,7 +72,7 @@ interface Props {
 export default function ResourceCard({ resource: r, left, top, hot, selected, onHover, onSelect, onConsult, onReplace, onClear, onRemove, onDropFile, conflict, pulse }: Props) {
   const [over, setOver] = useState(false)
   const fan = r.aids.slice(0, 3)
-  const grain = useDominant(r.empty ? undefined : r.thumb, TYPE_COLOR[r.type] ?? '#cdb184')
+  const grain = useDominant(r.empty ? undefined : r.thumb, TYPE_COLOR[r.type])
   return (
     <div
       className={'rcard' + (pulse ? ' gen-pulse' : '') + (conflict ? ' conflict' : '') + (over ? ' dropping' : '') + (hot ? ' hot' : '') + (selected ? ' selected' : '') + (r.empty ? ' empty' : '')}
@@ -101,14 +100,14 @@ export default function ResourceCard({ resource: r, left, top, hot, selected, on
       {conflict && <span className="conflict-badge">⚠ Incohérent</span>}
       {selected && !r.empty && (
         <div className="cmenu" role="menu" aria-label={`Actions pour ${r.title}`}>
-          <button role="menuitem" autoFocus onClick={onConsult}><IconEdit /> Consulter</button>
+          <button role="menuitem" ref={(el) => el?.focus({ preventScroll: true })} onClick={onConsult}><IconEdit /> Consulter</button>
           <button role="menuitem" onClick={onReplace}><IconSwap /> Remplacer</button>
           <button role="menuitem" className="danger" onClick={onClear}><IconTrash /> Vider l’emplacement</button>
         </div>
       )}
       {r.empty
         ? <button className="x" onClick={onRemove} aria-label="Retirer cet emplacement" title="Retirer cet emplacement"><IconX size={20} /></button>
-        : <><div className="name">{r.title}</div><div className="dur">{r.duration} min.</div></>}
+        : <><div className="name" style={r.title.length > 30 ? { fontSize: 26 } : undefined}>{r.title}</div><div className="dur">{r.duration} min.</div></>}
     </div>
   )
 }

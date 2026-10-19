@@ -10,9 +10,10 @@ import ResourceCard from './ResourceCard'
 import WaveCanvas from './WaveCanvas'
 import { INTRO, appearAt, easeInOut, reducedMotion } from '../intro'
 import { Circle, Star, Triangle } from './Decor'
+import { LINE_GREY, type ColorStop } from './WaveCanvas'
 import { IconX, TypeIcon } from './Icons'
 import { alternativesFor, coherentFor, emptySlot, makeResource, ownResource, resolveTitle, uid, type CatalogItem } from '../data/catalog'
-import type { Course, Resource, ResourceType } from '../types'
+import { TYPE_COLOR, type Course, type Resource, type ResourceType } from '../types'
 
 /** Cible du menu du bas : remplacer une ressource, remplir un emplacement vide, ou ajouter en fin de séance. */
 interface Target { mode: SlotMode; type: ResourceType; sessionId: string; id?: string }
@@ -23,6 +24,19 @@ const START = 400     // début de la 1re séance (la zone défile sous le panne
 const CY = 445        // axe de la vague
 const AMP = 126       // amplitude
 const NODE_R = 26
+const SEP_GAP = 170   // distance entre l’emplacement libre de fin de séance (demi-largeur 142 px) et le séparateur suivant ; reste < 180 pour que l’étiquette « Séance n » ne passe pas sous la 1re carte
+
+/** Formes colorées derrière une ressource de ludopédagogie (dans le style des formes de la maquette). */
+function LudoShape({ k, x, top, below }: { k: number; x: number; top: number; below: boolean }) {
+  const c = TYPE_COLOR.ludo
+  const v = k % 3
+  // « below » : la carte est sous la ligne, la forme dépasse par le bas ; sinon elle dépasse par le haut
+  const dy = (inner: number, size: number) => (below ? top + inner : top + 186 - inner - size)
+  const common = { zIndex: 0, opacity: 0.75, animation: 'shape-in .45s cubic-bezier(.3,1.4,.5,1) both' } as const
+  if (v === 0) return <Star color={c} style={{ ...common, left: x + 100, width: 160, height: 160, top: dy(70, 160) }} />
+  if (v === 1) return <Circle color={c} style={{ ...common, left: x - 205, width: 130, height: 130, top: dy(50, 130) }} />
+  return <Triangle color={c} style={{ ...common, left: x + 105, width: 140, height: 121, top: dy(60, 121) }} />
+}
 
 const waveY = (x: number, firstX: number) => CY + AMP * Math.cos((Math.PI * (x - firstX)) / SPACING)
 
@@ -163,7 +177,7 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
       const slots = s.resources.map((r) => ({ r, x: firstX + SPACING * g++ }))
       const phX = firstX + SPACING * g++
       const out = { s, sx, slots, phX }
-      sx = phX + 140
+      sx = phX + SEP_GAP
       return out
     })
     const endX = sx + 60
@@ -172,30 +186,56 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
 
   const innerW = trayOpen ? layout.width / 0.84 : layout.width
 
-  /* ---------- scroll en fondu (clic dans le sommaire) ---------- */
-  const fadeNext = useRef(false)
-  const fadeTimer = useRef<number>(0)
-  const fadeScrollTo = (left: number) => {
+  /* couleurs de la ligne : une par emplacement (gris si vide ou libre), en dégradé entre deux emplacements */
+  const stopsKey = useMemo(() => {
+    const st: ColorStop[] = []
+    layout.sessions.forEach(({ slots, phX }) => {
+      slots.forEach(({ r, x }) => st.push({ x, color: r.empty ? LINE_GREY : TYPE_COLOR[r.type] }))
+      st.push({ x: phX, color: LINE_GREY })
+    })
+    if (st.length) st.unshift({ x: 0, color: st[0].color })
+    return JSON.stringify(st)
+  }, [layout])
+  const lineStops = useMemo<ColorStop[]>(() => JSON.parse(stopsKey), [stopsKey])
+
+  /* ---------- défilement fluide (easing) jusqu'à une position ---------- */
+  const scrollAnim = useRef(0)
+  const smoothScrollTo = (to: number) => {
     const sc = scroller.current; if (!sc) return
-    if (reducedMotion()) { sc.scrollTo({ left }); return }
-    window.clearTimeout(fadeTimer.current)
-    sc.style.transition = 'opacity .18s ease'
-    sc.style.opacity = '0'
-    fadeTimer.current = window.setTimeout(() => {
-      sc.scrollTo({ left, behavior: 'instant' as ScrollBehavior })
-      requestAnimationFrame(() => { sc.style.transition = 'opacity .32s ease'; sc.style.opacity = '1' })
-    }, 190)
+    cancelAnimationFrame(scrollAnim.current)
+    const max = sc.scrollWidth - sc.clientWidth
+    const target = Math.max(0, Math.min(max, to))
+    const from = sc.scrollLeft
+    const dist = target - from
+    if (Math.abs(dist) < 2) return
+    if (reducedMotion()) { sc.scrollLeft = target; return }
+    const dur = Math.min(1300, 450 + Math.abs(dist) * 0.45)
+    const t0 = performance.now()
+    const stop = () => { cancelAnimationFrame(scrollAnim.current); sc.removeEventListener('wheel', stop); sc.removeEventListener('touchstart', stop) }
+    sc.addEventListener('wheel', stop, { passive: true }); sc.addEventListener('touchstart', stop, { passive: true })
+    const step = (now: number) => {
+      const k = Math.min(1, (now - t0) / dur)
+      sc.scrollLeft = from + dist * easeInOut(k)
+      if (k < 1) scrollAnim.current = requestAnimationFrame(step)
+      else stop()
+    }
+    scrollAnim.current = requestAnimationFrame(step)
   }
 
-  /* ---------- scroll vers l'élément ajouté ---------- */
+  /* ---------- scroll vers l'élément ajouté / choisi dans le sommaire ---------- */
   useEffect(() => {
     if (!jump || !scroller.current) return
     const el = jump === 'end' ? null : scroller.current.querySelector<HTMLElement>(`[data-rid="${jump}"]`)
     const target = el ? el.offsetLeft * (trayOpen ? 0.84 : 1) - 520 : scroller.current.scrollWidth
-    if (fadeNext.current) { fadeNext.current = false; fadeScrollTo(target) }
-    else scroller.current.scrollTo({ left: target, behavior: 'smooth' })
+    smoothScrollTo(target)
     setJump(null)
   }, [jump, course])
+
+  const ludoIdx = useMemo(() => {
+    const m = new Map<string, number>(); let i = 0
+    course.sessions.forEach((x) => x.resources.forEach((r) => { if (r.type === 'ludo' && !r.empty) m.set(r.id, i++) }))
+    return m
+  }, [course.sessions])
 
   const activeIdx = course.sessions.findIndex((s) => s.id === active)
   void activeIdx
@@ -310,7 +350,6 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
   }, [genRun])
 
   const isCrest = (x: number) => Math.round((x - layout.firstX) / SPACING) % 2 !== 0
-  let gIdx = 0
 
   return (
     <>
@@ -334,14 +373,13 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
         className={introOn ? 'in-left' : ''} style={delayed(0.35)}
         course={course}
         onAddLudo={() => setTarget({ mode: 'append', type: 'ludo', sessionId: active })}
-        onDiscover={() => setTarget({ mode: 'append', type: 'ludo', sessionId: active })}
-        onJump={(id) => { fadeNext.current = true; setJump(id); setSelectedId(id) }}
+        onJump={(id) => { setJump(id); setSelectedId(id) }}
         onMove={moveTo}
         onGenerate={startGen}
         onJumpSession={(id) => {
           const l = layout.sessions.find((x) => x.s.id === id); if (!l) return
           setActive(id)
-          fadeScrollTo(Math.max(0, (l.sx - 420) * (trayOpen ? 0.84 : 1)))
+          smoothScrollTo(Math.max(0, (l.sx - 420) * (trayOpen ? 0.84 : 1)))
         }}
         hoverId={hoverId} selectedId={selectedId} onHover={setHoverId}
       />
@@ -360,7 +398,7 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
                 : <line key={i} {...fx} x1={x} y1={y - NODE_R} x2={x + 8} y2={y - 190} stroke="#ecd9bb" strokeWidth="4" strokeLinecap="round" />
             })}
           </svg>
-          <WaveCanvas width={innerW} viewW={viewW} height={990} cy={CY} amp={AMP} firstX={layout.firstX} spacing={SPACING} intro={introOn} />
+          <WaveCanvas width={innerW} viewW={viewW} height={990} cy={CY} amp={AMP} firstX={layout.firstX} spacing={SPACING} intro={introOn} stops={lineStops} />
 
           {genRun && (
             <>
@@ -434,12 +472,10 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
                 {slots.map(({ r, x }) => {
                   const y = waveY(x, layout.firstX)
                   const crest = isCrest(x)
-                  const gi = gIdx++
                   const top = crest ? y + 200 : y - 416
                   return (
                     <div key={r.id} className={'intro-wrap' + (introOn ? ' in-fade' : '')} style={introOn ? at(x).style : undefined}>
-                      {gi % 3 === 0 && <Star style={{ left: x + 70, top: top - 100, width: 160, height: 160, zIndex: 0 }} />}
-                      {gi % 3 === 1 && <Circle style={{ left: x + 70, top: top + 110, width: 128, height: 128, zIndex: 0 }} color="#71e5b6" />}
+                      {r.type === 'ludo' && !r.empty && <LudoShape k={ludoIdx.get(r.id) ?? 0} x={x} top={top} below={crest} />}
                       <ResourceCard resource={r} left={x - 140} top={top} hot={hoverId === r.id || selectedId === r.id} selected={selectedId === r.id}
                         onHover={(on) => setHoverId((h) => (on ? r.id : h === r.id ? null : h))}
                         onSelect={() => selectCard(r.id)} onConsult={() => setDetailId(r.id)} onReplace={() => openReplace(r.id)} onClear={() => clearSlot(r.id)} conflict={staleIds.has(r.id)} pulse={passedIds.has(r.id)}
@@ -458,7 +494,6 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
                   const top = crest ? y + 200 : y - 386
                   return (
                     <div className={'intro-wrap' + (introOn ? ' in-fade' : '')} style={introOn ? at(phX, 0.1).style : undefined}>
-                      {!crest && <Triangle style={{ left: phX + 90, top: top + 100, width: 130, height: 112, zIndex: 0 }} color="#71e5b6" />}
                       <div
                         className={'placeholder-card' + (isActive && target?.mode === 'append' ? ' active' : '')}
                         style={{ left: phX - 142, top }}

@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { TYPE_LABEL, ORIGIN_LABEL, type ResourceType } from '../types'
+import { TYPE_LABEL, TYPE_COLOR, ORIGIN_LABEL, type ResourceType } from '../types'
 import { resolveTitle, type CatalogItem } from '../data/catalog'
-import { IconDoc, IconPlay, IconStar, IconSun, IconX } from './Icons'
+import { IconDoc, IconFeather, IconPerson, IconPlay, IconStar, IconSun, IconX } from './Icons'
 import { FakeThumb } from './ResourceCard'
 
 const TABS: { type: ResourceType; icon: React.ReactElement; color: string }[] = [
-  { type: 'texte', icon: <IconDoc />, color: '#efdc5c' },
-  { type: 'video', icon: <IconPlay />, color: '#affacd' },
-  { type: 'ludo', icon: <IconStar />, color: '#adf3ee' },
-  { type: 'rituel', icon: <IconSun />, color: '#f2e7a3' },
+  { type: 'texte', icon: <IconDoc />, color: TYPE_COLOR.texte },
+  { type: 'video', icon: <IconPlay />, color: TYPE_COLOR.video },
+  { type: 'ludo', icon: <IconStar />, color: TYPE_COLOR.ludo },
+  { type: 'rituel', icon: <IconSun />, color: TYPE_COLOR.rituel },
+  { type: 'atelier', icon: <IconPerson />, color: TYPE_COLOR.atelier },
+  { type: 'langue', icon: <IconFeather />, color: TYPE_COLOR.langue },
 ]
 
 export type SlotMode = 'replace' | 'fill' | 'append'
@@ -30,7 +32,7 @@ interface Props {
   style?: React.CSSProperties
 }
 
-const VISIBLE = 4
+const VISIBLE = 5
 
 export default function SlotMenu({ mode, type: t0, subject, heading, sessionLabel, alternatives, room, onPick, onOwn, onFile, onClose, className = '', style }: Props) {
   const [type, setType] = useState(t0)
@@ -81,7 +83,7 @@ export default function SlotMenu({ mode, type: t0, subject, heading, sessionLabe
                   <span className="add-overlay">{mode === 'replace' ? 'Remplacer par celle-ci' : 'Placer ici'}</span>
                 </div>
                 <div className="t">{title}</div>
-                <div className="d"><span title="Nombre d’utilisations">{it.origin === 'mine' ? 'Mes ressources' : `${it.uses} utilisations`}</span>{over && <span className="warn"> · dépasse la séance</span>}</div>
+                <div className="d">{it.origin === 'mine' ? 'Mes ressources' : (it.source ?? '\u00a0')}{over && <span className="warn"> · dépasse la séance</span>}</div>
               </button>
             )
           })}

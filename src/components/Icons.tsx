@@ -12,6 +12,16 @@ export const IconSun = () => (
     <circle cx="12" cy="12" r="4" fill="currentColor" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2" />
   </svg>
 )
+export const IconPerson = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="8" r="3.6" fill="currentColor" fillOpacity=".25" /><path d="M4.5 20c0-4.2 3.3-6.6 7.5-6.6s7.5 2.4 7.5 6.6z" fill="currentColor" fillOpacity=".25" />
+  </svg>
+)
+export const IconFeather = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 4c-8.5 0-13.5 4.6-13.5 11.5l-2 4.5" /><path d="M20 4c.4 8-4.4 12-12.6 11.6" fill="currentColor" fillOpacity=".25" /><path d="M9.5 14.2l5.3-5.2" />
+  </svg>
+)
 export const IconX = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round"><path d="M5 5l14 14M19 5L5 19" /></svg>
 )
@@ -36,5 +46,7 @@ export const TypeIcon = ({ type }: { type: ResourceType }) => {
     case 'texte': return <IconDoc />
     case 'ludo': return <IconStar />
     case 'rituel': return <IconSun />
+    case 'atelier': return <IconPerson />
+    case 'langue': return <IconFeather />
   }
 }

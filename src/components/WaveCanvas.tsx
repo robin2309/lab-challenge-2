@@ -2,30 +2,26 @@ import { useLayoutEffect, useRef } from 'react'
 import { FLAT_Y, INTRO, TIMELINE_TOP, amplitudeAt, easeOutCubic } from '../intro'
 
 /**
- * Trait de la ligne : on réutilise la vraie texture du trait de la maquette (assets/wave-flat.png,
- * bande horizontale extraite du PSD) et on la déroule le long de la courbe, tranche par tranche.
- * Le même moteur dessine la ligne plate de l'écran 1 et la ligne ondulée de l'écran 2,
- * ce qui garantit une continuité parfaite entre les deux écrans.
+ * Trait de la ligne : un ruban d'épaisseur légèrement irrégulière (sans texture), rempli d'un dégradé
+ * horizontal dont les couleurs viennent des types de ressources posés sur chaque emplacement
+ * (gris tant qu'un emplacement est vide).
  */
-const SRC_X0 = 300     // zone pleine opacité de la bande (hors fondus de début/fin)
-const SRC_X1 = 1600
-const SRC_H = 29
-const THICKNESS = 27   // épaisseur du trait (px de maquette)
-const STRETCH = 1.6    // étirement le long du trait : le dégradé turquoise → vert s'étale comme dans la maquette
-const TILE = SRC_X1 - SRC_X0
-const SCALE = THICKNESS / SRC_H
+const THICKNESS = 27   // épaisseur moyenne du trait (px de maquette)
 const DENSITY = 2
 
-let cachedImg: HTMLImageElement | null = null
-let imgPromise: Promise<HTMLImageElement> | null = null
-export const preloadLine = () =>
-  (imgPromise ??= new Promise((res, rej) => {
-    const i = new Image()
-    i.onload = () => { cachedImg = i; res(i) }
-    i.onerror = rej
-    i.src = '/assets/wave-flat.png'
-  }))
-const withImg = (cb: (i: HTMLImageElement) => void) => (cachedImg ? cb(cachedImg) : void preloadLine().then(cb))
+export interface ColorStop { x: number; color: string }
+export const LINE_GREY = '#d3c9b8'
+
+const hex = (c: string) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16))
+const mixHex = (a: string, b: string, t: number) => {
+  const A = hex(a), B = hex(b)
+  return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`
+}
+
+/** épaisseur et décalage vertical irréguliers (déterministes, indexés sur x : le trait ne « glisse » pas quand la ligne ondule) */
+const wobble = (x: number) => 1 + 0.08 * Math.sin(x / 23 + 0.4) + 0.045 * Math.sin(x / 9.7 + 1.3) + 0.04 * Math.sin(x / 41 + 2.1)
+const jitter = (x: number) => 0.8 * Math.sin(x / 17 + 2) + 0.4 * Math.sin(x / 6.3)
+const grain = (x: number, k: number) => { const v = Math.sin(x * 12.9898 + k * 78.233) * 43758.5453; return (v - Math.floor(v) - 0.5) * 1.1 }
 
 interface Spec {
   from: number; to: number            // fenêtre (en x « monde ») à dessiner
@@ -33,46 +29,62 @@ interface Spec {
   startFade: number; endFade: number  // fondus aux deux bouts
   yAt: (x: number) => number          // y local du centre du trait
   height: number
+  stops: ColorStop[]                  // couleurs le long de x
+  gw: number                          // largeur logique de la zone de dessin (pour le dégradé)
+  mix?: number                        // 0 = tout gris, 1 = couleurs finales (apparition progressive)
   step?: number
 }
 
-function drawLine(ctx: CanvasRenderingContext2D, img: HTMLImageElement, s: Spec) {
+function drawLine(ctx: CanvasRenderingContext2D, s: Spec) {
   const a = Math.max(s.from - 6, s.xStart)
   const b = Math.min(s.to + 6, s.xEnd)
   if (b <= a) return
-  const step = s.step ?? 0.5
-  let px = a, py = s.yAt(a)
-  while (px < b) {
-    const x = Math.min(px + step, b)
-    const y = s.yAt(x)
-    const dx = x - px, dy = y - py
-    const ds = Math.hypot(dx, dy)
-    // la texture est indexée sur x (et non sur la longueur de courbe) : elle ne « glisse » pas quand la ligne ondule
-    let u = (x / (SCALE * STRETCH)) % (TILE * 2)
-    if (u > TILE) u = TILE * 2 - u
-    const sx = Math.min(SRC_X1 - 1, SRC_X0 + Math.floor(u))
-    ctx.save()
-    ctx.translate(px, py)
-    ctx.rotate(Math.atan2(dy, dx))
-    ctx.drawImage(img, sx, 0, 1, SRC_H, 0, -THICKNESS / 2, ds * 1.35 + 0.2, THICKNESS)
-    ctx.restore()
-    px = x; py = y
+  const step = s.step ?? 1
+  const up: [number, number][] = [], down: [number, number][] = []
+  for (let x = a; ; x = Math.min(x + step, b)) {
+    const y0 = s.yAt(x), y1 = s.yAt(x + 0.5)
+    const nx = -(y1 - y0), ny = 0.5, nl = Math.hypot(nx, ny)
+    const ux = nx / nl, uy = ny / nl // normale (vers le bas)
+    const h = (THICKNESS * wobble(x)) / 2
+    const cy = y0 + jitter(x)
+    up.push([x - ux * (h + grain(x, 1)), cy - uy * (h + grain(x, 1))])
+    down.push([x + ux * (h + grain(x, 2)), cy + uy * (h + grain(x, 2))])
+    if (x >= b) break
   }
+  ctx.beginPath()
+  ctx.moveTo(up[0][0], up[0][1])
+  for (const [x, y] of up) ctx.lineTo(x, y)
+  for (let i = down.length - 1; i >= 0; i--) ctx.lineTo(down[i][0], down[i][1])
+  ctx.closePath()
+  const g = ctx.createLinearGradient(0, 0, s.gw, 0)
+  const mix = s.mix ?? 1
+  const stops = s.stops.length ? s.stops : [{ x: 0, color: LINE_GREY }]
+  let last = -1
+  for (const st of stops) {
+    const p = Math.min(1, Math.max(last, st.x / s.gw)); last = p
+    g.addColorStop(p, mix >= 1 ? st.color : mixHex(LINE_GREY, st.color, mix))
+  }
+  ctx.fillStyle = g
+  ctx.fill()
+
   ctx.globalCompositeOperation = 'destination-out'
   if (s.startFade > 0) {
-    const g = ctx.createLinearGradient(s.xStart, 0, s.xStart + s.startFade, 0)
-    g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)')
-    ctx.fillStyle = g
+    const f = ctx.createLinearGradient(s.xStart, 0, s.xStart + s.startFade, 0)
+    f.addColorStop(0, 'rgba(0,0,0,1)'); f.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.fillStyle = f
     ctx.fillRect(s.xStart - 8, 0, s.startFade + 8, s.height)
   }
   if (s.endFade > 0) {
-    const g = ctx.createLinearGradient(s.xEnd - s.endFade, 0, s.xEnd, 0)
-    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,1)')
-    ctx.fillStyle = g
+    const f = ctx.createLinearGradient(s.xEnd - s.endFade, 0, s.xEnd, 0)
+    f.addColorStop(0, 'rgba(0,0,0,0)'); f.addColorStop(1, 'rgba(0,0,0,1)')
+    ctx.fillStyle = f
     ctx.fillRect(s.xEnd - s.endFade, 0, s.endFade + 8, s.height)
   }
   ctx.globalCompositeOperation = 'source-over'
 }
+
+/** conservé pour l'API existante : plus rien à précharger (la ligne n'utilise plus de texture) */
+export const preloadLine = () => Promise.resolve()
 
 /* ------------------------------------------------------------------ */
 /* Écran 1 : la ligne plate, pleine largeur                            */
@@ -88,14 +100,12 @@ export function FlatLine({ busy }: { busy?: boolean }) {
     const draw = () => {
       const w = cv.clientWidth
       if (!w) return
-      withImg((img) => {
-        cv.width = Math.round(w * DENSITY); cv.height = BAND * DENSITY
-        const ctx = cv.getContext('2d')!
-        ctx.setTransform(DENSITY, 0, 0, DENSITY, 0, 0)
-        drawLine(ctx, img, {
-          from: 0, to: w, xStart: 0, xEnd: w, startFade: FLAT_START_FADE, endFade: FLAT_END_FADE,
-          yAt: () => BAND / 2, height: BAND, step: 1,
-        })
+      cv.width = Math.round(w * DENSITY); cv.height = BAND * DENSITY
+      const ctx = cv.getContext('2d')!
+      ctx.setTransform(DENSITY, 0, 0, DENSITY, 0, 0)
+      drawLine(ctx, {
+        from: 0, to: w, xStart: 0, xEnd: w, startFade: FLAT_START_FADE, endFade: FLAT_END_FADE,
+        yAt: () => BAND / 2, height: BAND, step: 1, stops: [{ x: 0, color: LINE_GREY }], gw: w,
       })
     }
     draw()
@@ -120,9 +130,10 @@ interface Props {
   height: number
   cy: number; amp: number; firstX: number; spacing: number
   intro: boolean
+  stops: ColorStop[]
 }
 
-export default function WaveCanvas({ width, viewW, height, cy, amp, firstX, spacing, intro }: Props) {
+export default function WaveCanvas({ width, viewW, height, cy, amp, firstX, spacing, intro, stops }: Props) {
   const ref = useRef<HTMLCanvasElement>(null)
 
   useLayoutEffect(() => {
@@ -134,16 +145,15 @@ export default function WaveCanvas({ width, viewW, height, cy, amp, firstX, spac
     const waveAt = (x: number) => cy + amp * Math.cos((Math.PI * (x - firstX)) / spacing)
     const START_X = 56 // le trait démarre franchement sous le panneau latéral (qui commence à x = 32)
 
-    const finalDraw = (img: HTMLImageElement) => {
+    const finalDraw = () => {
       cv.width = Math.round(width * k); cv.height = Math.round(height * k)
       const ctx = cv.getContext('2d')!
       ctx.setTransform(k, 0, 0, k, 0, 0)
-      drawLine(ctx, img, { from: 0, to: width, xStart: START_X, xEnd: width, startFade: 0, endFade: 220, yAt: waveAt, height })
+      drawLine(ctx, { from: 0, to: width, xStart: START_X, xEnd: width, startFade: 0, endFade: 220, yAt: waveAt, height, stops, gw: width })
     }
 
-    withImg((img) => {
-      if (cancelled) return
-      if (!intro) { finalDraw(img); return }
+    {
+      if (!intro) { finalDraw(); return }
 
       cv.width = Math.round(width * k); cv.height = Math.round(height * k)
       const ctx = cv.getContext('2d')!
@@ -152,14 +162,15 @@ export default function WaveCanvas({ width, viewW, height, cy, amp, firstX, spac
       const frame = () => {
         if (cancelled) return
         const t = (performance.now() - t0) / 1000
-        if (t >= INTRO.end) { finalDraw(img); return }
+        if (t >= INTRO.end) { finalDraw(); return }
         const ext = easeOutCubic((t - INTRO.extendStart) / INTRO.extendDur)
         const amt = amplitudeAt(t)
         const yAt = (x: number) => base + amt * (waveAt(x) - base)
         ctx.setTransform(1, 0, 0, 1, 0, 0)
         ctx.clearRect(0, 0, slab * k, height * k)
         ctx.setTransform(k, 0, 0, k, 0, 0)
-        drawLine(ctx, img, {
+        drawLine(ctx, {
+          stops, gw: width, mix: Math.min(1, Math.max(0, amt)),
           from: 0, to: slab,
           xStart: START_X * ext,
           xEnd: viewW + (width - viewW) * ext,
@@ -170,9 +181,9 @@ export default function WaveCanvas({ width, viewW, height, cy, amp, firstX, spac
         raf = requestAnimationFrame(frame)
       }
       frame()
-    })
+    }
     return () => { cancelled = true; cancelAnimationFrame(raf) }
-  }, [width, viewW, height, cy, amp, firstX, spacing, intro])
+  }, [width, viewW, height, cy, amp, firstX, spacing, intro, stops])
 
   return <canvas ref={ref} style={{ position: 'absolute', left: 0, top: 0, width, height, pointerEvents: 'none' }} />
 }

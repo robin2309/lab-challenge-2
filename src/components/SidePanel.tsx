@@ -1,15 +1,14 @@
 import { useState } from 'react'
-import { type Course, type ResourceType } from '../types'
+import { TYPE_COLOR, TYPE_ORDER, type Course, type ResourceType } from '../types'
 
-const COLORS: Record<ResourceType, string> = { video: '#affacd', rituel: '#f2e7a3', texte: '#efdc5c', ludo: '#adf3ee' }
-const ORDER: ResourceType[] = ['video', 'rituel', 'texte', 'ludo']
-const SHORT: Record<ResourceType, string> = { video: 'Vidéos', rituel: 'Rituels', texte: 'Texte et…', ludo: 'Ludopéda…' }
+const COLORS = TYPE_COLOR
+const ORDER = TYPE_ORDER
+const SHORT: Record<ResourceType, string> = { video: 'Vidéos', rituel: 'Rituels', texte: 'Texte et…', ludo: 'Ludopéda…', atelier: 'Ateliers', langue: 'Langue' }
 const CX = 140, CY = 112, R = 96
 
 interface Props {
   course: Course
   onAddLudo: () => void
-  onDiscover: () => void
   onJump: (resourceId: string) => void
   onJumpSession: (sessionId: string) => void
   onGenerate: () => void
@@ -21,7 +20,7 @@ interface Props {
   style?: React.CSSProperties
 }
 
-export default function SidePanel({ course, onAddLudo, onDiscover, onJump, onJumpSession, onGenerate, onMove, hoverId, selectedId, onHover, className = '', style }: Props) {
+export default function SidePanel({ course, onAddLudo, onJump, onJumpSession, onGenerate, onMove, hoverId, selectedId, onHover, className = '', style }: Props) {
   const [dragId, setDragId] = useState<string | null>(null)
   const [over, setOver] = useState<{ sid: string; index: number } | null>(null)
   const endDrag = () => { setDragId(null); setOver(null) }
@@ -33,7 +32,16 @@ export default function SidePanel({ course, onAddLudo, onDiscover, onJump, onJum
     t, v: course.sessions.flatMap((s) => s.resources).filter((r) => r.type === t && !r.empty).reduce((a, r) => a + r.duration, 0),
   }))
   const sum = totals.reduce((a, x) => a + x.v, 0)
-  const ludoShare = sum ? (totals.find((x) => x.t === 'ludo')!.v / sum) : 0
+
+  /* ligne éditoriale : déduite des ressources réellement posées sur la ligne */
+  const placed = course.sessions.flatMap((x) => x.resources).filter((r) => !r.empty)
+  const count = (f: (r: (typeof placed)[number]) => boolean) => placed.filter(f).length
+  const formats = new Set(placed.map((r) => r.type)).size
+  const nLudo = count((r) => r.type === 'ludo')
+  const nOral = count((r) => r.type === 'atelier' && r.atelier === 'oral')
+  const nEcrit = count((r) => r.type === 'atelier' && r.atelier === 'ecrit')
+  const filled = course.sessions.filter((x) => x.resources.some((r) => !r.empty))
+  const ritualStarts = filled.length >= 2 && filled.every((x) => x.resources.find((r) => !r.empty)?.type === 'rituel')
 
   let a0 = -Math.PI / 2
   const slices = totals.filter((x) => x.v > 0).map((x) => {
@@ -72,22 +80,15 @@ export default function SidePanel({ course, onAddLudo, onDiscover, onJump, onJum
 
             <h3>Ma ligne éditoriale</h3>
             <ul>
-              <li>Formats variés pour maintenir l’attention.</li>
-              {ludoShare < 0.2 ? (
-                <li>Un peu de ludopédagogie. <button className="link" onClick={onAddLudo}>En ajouter</button></li>
+              {formats >= 4 && <li>Formats variés pour maintenir l’attention des élèves.</li>}
+              {nOral >= 2 && <li>Part belle à l’oral, pour entraîner les élèves à s’exprimer.</li>}
+              {nEcrit >= 2 && <li>Place importante de l’écrit, recommandée par les programmes.</li>}
+              {ritualStarts && <li>Des moments ritualisés, pour structurer les séances et favoriser la mémorisation.</li>}
+              {nLudo > 2 ? (
+                <li>Ludopédagogie au cœur des apprentissages, pour favoriser la proactivité des élèves.</li>
               ) : (
-                <li>Une belle part de ludopédagogie.</li>
+                <li>Ludopédagogie un peu présente. <button className="link" onClick={onAddLudo}>En ajouter</button></li>
               )}
-              <li>Oeuvres issues des listes officielles.</li>
-              <li>Ouverture de chapitre originale.</li>
-            </ul>
-
-            <h3>Aller plus loin</h3>
-            <ul>
-              <li>
-                Ajouter un jeu de société de 15 minutes, avec une mise en place rapide et simple.{' '}
-                <button className="link" onClick={onDiscover}>Découvrir</button>
-              </li>
             </ul>
           </>
         ) : (

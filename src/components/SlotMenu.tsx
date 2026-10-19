@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { TYPE_LABEL, TYPE_COLOR, ORIGIN_LABEL, type ResourceType } from '../types'
-import { resolveTitle, type CatalogItem } from '../data/catalog'
+import { resolveTitle, usesLabel, type CatalogItem } from '../data/catalog'
 import { IconDoc, IconFeather, IconPerson, IconPlay, IconStar, IconSun, IconX } from './Icons'
 import { FakeThumb } from './ResourceCard'
 
@@ -83,7 +83,8 @@ export default function SlotMenu({ mode, type: t0, subject, heading, sessionLabe
                   <span className="add-overlay">{mode === 'replace' ? 'Remplacer par celle-ci' : 'Placer ici'}</span>
                 </div>
                 <div className="t">{title}</div>
-                <div className="d">{it.origin === 'mine' ? 'Mes ressources' : (it.source ?? '\u00a0')}{over && <span className="warn"> · dépasse la séance</span>}</div>
+                <div className="d">{it.origin === 'mine' ? 'Mes ressources' : (it.source ?? '\u00a0')}{it.used && <span> · déjà dans la ligne</span>}{over && <span className="warn"> · dépasse la séance</span>}</div>
+                {it.origin !== 'mine' && <div className="u">{usesLabel(it.uses)}</div>}
               </button>
             )
           })}

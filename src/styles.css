@@ -510,3 +510,6 @@ input, textarea, select { font: inherit; color: inherit; }
 .rcard .grain-shadow { position: absolute; left: 0; top: 0; width: 280px; height: 186px; border-radius: 16px; background: currentColor; filter: url(#grain-shadow); opacity: .6; pointer-events: none; z-index: 0; }
 
 @keyframes shape-in { from { transform: scale(.4) rotate(-12deg); opacity: 0; } }
+
+.rcard .uses { font-size: 14px; opacity: .75; margin-top: 2px; }
+.sm-card .u { font-size: 13px; color: #6d5f48; margin-top: 1px; font-weight: 600; }

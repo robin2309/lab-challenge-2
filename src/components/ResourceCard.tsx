@@ -1,3 +1,4 @@
+import { usesLabel } from '../data/catalog'
 import { useEffect, useState } from 'react'
 import type { Resource, ResourceType } from '../types'
 import { AID_LABEL, TYPE_COLOR } from '../types'
@@ -107,7 +108,7 @@ export default function ResourceCard({ resource: r, left, top, hot, selected, on
       )}
       {r.empty
         ? <button className="x" onClick={onRemove} aria-label="Retirer cet emplacement" title="Retirer cet emplacement"><IconX size={20} /></button>
-        : <><div className="name" style={r.title.length > 30 ? { fontSize: 26 } : undefined}>{r.title}</div><div className="dur">{r.duration} min.</div></>}
+        : <><div className="name" style={r.title.length > 30 ? { fontSize: 26 } : undefined}>{r.title}</div><div className="dur">{r.duration} min.</div>{usesLabel(r.uses) && <div className="uses">{usesLabel(r.uses)}</div>}</>}
     </div>
   )
 }

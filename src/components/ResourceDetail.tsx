@@ -1,3 +1,4 @@
+import { usesLabel } from '../data/catalog'
 import { useState } from 'react'
 import { AID_LABEL, ORIGIN_LABEL, TYPE_LABEL, type Resource } from '../types'
 import { IconX, TypeIcon } from './Icons'
@@ -24,6 +25,7 @@ export default function ResourceDetail({ resource: r, onClose, onReplace, onOwn 
           {r.url && <p className="detail-desc" style={{ margin: '0 0 10px' }}><a href={r.url} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>Voir la vidéo en ligne ↗</a></p>}
           <div className="detail-meta">
             <span>{r.duration} min.</span>
+            {usesLabel(r.uses) && <span>{usesLabel(r.uses)}</span>}
             <span className={'origin-pill ' + r.origin} style={{ position: 'static' }}>{ORIGIN_LABEL[r.origin]}</span>
           </div>
           <div className="detail-preview">{r.thumb ? <img src={r.thumb} alt="" /> : <FakeThumb type={r.type} title={r.title} />}</div>

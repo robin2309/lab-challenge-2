@@ -16,6 +16,8 @@ export interface CatalogItem {
   source?: string // référence de l'extrait
   url?: string // lien externe
   kit?: AidKind[] // documents fournis avec la ressource (ex. escape game)
+  pos?: number  // position imposée dans la liste (0 = première)
+  used?: boolean // déjà présente dans la ligne
   kitThumbs?: Partial<Record<AidKind, string>> // visuels des documents fournis
   file?: string // ressource importée depuis l’ordinateur du prof (« Mes ressources »)
 }
@@ -29,14 +31,23 @@ export const WORKS: Record<string, string> = {
 }
 const workOf = (id?: string) => (id ? { id, label: WORKS[id] } : undefined)
 
-interface Extra { work?: string; source?: string; url?: string; kit?: AidKind[]; kitThumbs?: CatalogItem['kitThumbs']; mode?: AtelierMode; thumb?: string; tags?: string[] }
+interface Extra { work?: string; source?: string; url?: string; kit?: AidKind[]; kitThumbs?: CatalogItem['kitThumbs']; mode?: AtelierMode; pos?: number; thumb?: string; tags?: string[] }
 /** Les durées sont provisoires (non fournies) : à confirmer avec l'équipe éditoriale. */
 const it = (type: ResourceType, title: string, duration: number, x: Extra = {}): CatalogItem =>
-  ({ type, title, duration, origin: 'lls', uses: 0, thumb: x.thumb, tags: x.tags, work: x.work, mode: x.mode, source: x.source, url: x.url, kit: x.kit, kitThumbs: x.kitThumbs })
+  ({ type, title, duration, origin: 'lls', uses: fakeUses(type, title), pos: x.pos, thumb: x.thumb, tags: x.tags, work: x.work, mode: x.mode, source: x.source, url: x.url, kit: x.kit, kitThumbs: x.kitThumbs })
 const th = ['théâtre', 'molière']
 const src = (work: string, act: string) => `Molière, ${WORKS[work]}, ${act}`
 
 /** Ressources proposées par type (liste fournie par l'équipe produit : aucun contenu inventé). */
+/** Nombre d’enseignants ayant utilisé la ressource (valeur fictive, stable d’un rendu à l’autre). */
+function fakeUses(type: string, title: string): number {
+  let h = 7
+  for (const ch of type + title) h = (h * 31 + ch.charCodeAt(0)) % 100003
+  return 120 + (h % 2300)
+}
+export const usesLabel = (n: number): string | null =>
+  n > 0 ? `Utilisée par ${n.toLocaleString('fr-FR')} enseignant${n > 1 ? 's' : ''}` : null
+
 export const CATALOG: Record<ResourceType, CatalogItem[]> = {
   texte: [
     it('texte', 'Il y a peu de choses qui me soient impossibles', 25, { work: 'scapin', source: src('scapin', 'Acte 1, scène 2'), tags: th }),
@@ -48,7 +59,7 @@ export const CATALOG: Record<ResourceType, CatalogItem[]> = {
     it('texte', 'L’imposture en action', 25, { work: 'medecin', source: src('medecin', 'Acte 2, scène 4'), tags: th }),
   ],
   video: [
-    it('video', 'Entrée de chapitre : Les Fourberies de Scapin', 5, { work: 'scapin', thumb: IMG + 'entree-scapin.jpg', tags: th }),
+    it('video', 'Entrée de chapitre : Les Fourberies de Scapin', 5, { work: 'scapin', pos: 1, thumb: IMG + 'entree-scapin.jpg', tags: th }),
     it('video', 'Entrée de chapitre : Le Malade imaginaire', 5, { work: 'malade', thumb: IMG + 'entree-malade-imaginaire.jpg', tags: th }),
     it('video', 'Le théâtre au temps de Molière', 8, { tags: th }),
     it('video', 'Présentation de Molière', 6, { tags: th }),
@@ -124,9 +135,15 @@ export const ownResource = (type: ResourceType, title: string, duration: number,
 })
 
 /**
- * Alternatives proposées pour une séance : même type, hors ressources déjà dans le cours,
- * classées par proximité avec le sujet puis par nombre d’utilisations. Dix au plus.
+ * Alternatives proposées pour une séance : même type, dont celles déjà dans la ligne (signalées, placées en fin),
+ * classées par proximité avec le sujet.
  */
+/** Replace les ressources à position imposée (pos) à leur rang dans la liste. */
+function pinned(list: CatalogItem[]): CatalogItem[] {
+  const out = list.filter((c) => c.pos === undefined)
+  list.filter((c) => c.pos !== undefined).sort((a, b) => a.pos! - b.pos!).forEach((c) => out.splice(Math.min(c.pos!, out.length), 0, c))
+  return out
+}
 export function alternativesFor(type: ResourceType, subject: string, taken: Set<string>, currentTitle?: string): CatalogItem[] {
   const words = subject.toLowerCase().split(/[^a-zàâçéèêëîïôûùüÿœ]+/).filter((w) => w.length > 3)
   const score = (c: CatalogItem) => {
@@ -134,10 +151,11 @@ export function alternativesFor(type: ResourceType, subject: string, taken: Set<
     const theatre = /moli[eè]re|th[ée][aâ]tre|scapin|avare/.test(subject.toLowerCase()) && (c.tags ?? []).includes('théâtre') ? 1 : 0
     return (words.filter((w) => hay.includes(w)).length + theatre) * 1000
   }
-  return CATALOG[type]
-    .filter((c) => { const t = fill(c.title, subject); return t !== currentTitle && !taken.has(t) })
-    .sort((x, y) => score(y) - score(x))
-    .slice(0, 10)
+  const list = CATALOG[type]
+    .filter((c) => fill(c.title, subject) !== currentTitle)
+    .map((c) => (taken.has(fill(c.title, subject)) ? { ...c, used: true } : c))
+    .sort((x, y) => Number(!!x.used) - Number(!!y.used) || score(y) - score(x))
+  return pinned(list)
 }
 export const resolveTitle = fill
 

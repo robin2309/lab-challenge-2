@@ -16,10 +16,11 @@ export interface CatalogItem {
   source?: string // référence de l'extrait
   url?: string // lien externe
   kit?: AidKind[] // documents fournis avec la ressource (ex. escape game)
+  kitThumbs?: Partial<Record<AidKind, string>> // visuels des documents fournis
   file?: string // ressource importée depuis l’ordinateur du prof (« Mes ressources »)
 }
 
-const V = '/assets/thumb-video.jpg' // visuel d'entrée de chapitre « Les Fourberies de Scapin »
+const IMG = '/assets/ressources/'
 
 export const WORKS: Record<string, string> = {
   scapin: 'Les Fourberies de Scapin',
@@ -28,10 +29,10 @@ export const WORKS: Record<string, string> = {
 }
 const workOf = (id?: string) => (id ? { id, label: WORKS[id] } : undefined)
 
-interface Extra { work?: string; source?: string; url?: string; kit?: AidKind[]; mode?: AtelierMode; thumb?: string; tags?: string[] }
+interface Extra { work?: string; source?: string; url?: string; kit?: AidKind[]; kitThumbs?: CatalogItem['kitThumbs']; mode?: AtelierMode; thumb?: string; tags?: string[] }
 /** Les durées sont provisoires (non fournies) : à confirmer avec l'équipe éditoriale. */
 const it = (type: ResourceType, title: string, duration: number, x: Extra = {}): CatalogItem =>
-  ({ type, title, duration, origin: 'lls', uses: 0, thumb: x.thumb, tags: x.tags, work: x.work, mode: x.mode, source: x.source, url: x.url, kit: x.kit })
+  ({ type, title, duration, origin: 'lls', uses: 0, thumb: x.thumb, tags: x.tags, work: x.work, mode: x.mode, source: x.source, url: x.url, kit: x.kit, kitThumbs: x.kitThumbs })
 const th = ['théâtre', 'molière']
 const src = (work: string, act: string) => `Molière, ${WORKS[work]}, ${act}`
 
@@ -47,22 +48,22 @@ export const CATALOG: Record<ResourceType, CatalogItem[]> = {
     it('texte', 'L’imposture en action', 25, { work: 'medecin', source: src('medecin', 'Acte 2, scène 4'), tags: th }),
   ],
   video: [
-    it('video', 'Entrée de chapitre : Les Fourberies de Scapin', 5, { work: 'scapin', thumb: V, tags: th }),
-    it('video', 'Entrée de chapitre : Le Malade imaginaire', 5, { work: 'malade', tags: th }),
+    it('video', 'Entrée de chapitre : Les Fourberies de Scapin', 5, { work: 'scapin', thumb: IMG + 'entree-scapin.jpg', tags: th }),
+    it('video', 'Entrée de chapitre : Le Malade imaginaire', 5, { work: 'malade', thumb: IMG + 'entree-malade-imaginaire.jpg', tags: th }),
     it('video', 'Le théâtre au temps de Molière', 8, { tags: th }),
     it('video', 'Présentation de Molière', 6, { tags: th }),
     it('video', 'Mise en scène du Médecin malgré lui - Acte 1 scène 1', 10, { work: 'medecin', tags: th }),
     it('video', 'Le Monde : Pourquoi Molière est devenu aussi célèbre', 8, { url: 'https://www.youtube.com/watch?v=NeFjybzGbzc', source: 'Le Monde (YouTube)', tags: th }),
   ],
   ludo: [
-    it('ludo', 'Jeu à imprimer : Je peux tout expliquer', 20),
-    it('ludo', 'Escape game', 30, { kit: ['projection', 'imprime', 'notice'] }),
-    it('ludo', 'Jeu de carte sur le genre littéraire du théâtre', 15, { tags: ['théâtre'] }),
-    it('ludo', 'Jeu de carte : Champ de bataille lexicale', 15),
-    it('ludo', 'Jeu de carte : Notions grammaticales', 15),
+    it('ludo', 'Jeu à imprimer : Je peux tout expliquer', 20, {}),
+    it('ludo', 'Escape game', 30, { kit: ['projection', 'imprime', 'notice'], thumb: IMG + 'escape-support-projeter.jpg' }),
+    it('ludo', 'Jeu de carte sur le genre littéraire du théâtre', 15, { tags: ['théâtre'], thumb: IMG + 'carte-genre-theatre.png' }),
+    it('ludo', 'Jeu de carte : Champ de bataille lexicale', 15, { thumb: IMG + 'carte-champ-bataille-lexicale.png' }),
+    it('ludo', 'Jeu de carte : Notions grammaticales', 15, { thumb: IMG + 'carte-notions-grammaticales.png' }),
   ],
   rituel: [
-    it('rituel', 'Dés d’expression', 5),
+    it('rituel', 'Dés d’expression', 5, { thumb: IMG + 'des-expression.jpg' }),
     it('rituel', 'Citation du jour', 5),
     it('rituel', 'Dictée flash', 10),
     it('rituel', 'Analyse de phrase', 5),
@@ -79,8 +80,8 @@ export const CATALOG: Record<ResourceType, CatalogItem[]> = {
     it('atelier', 'Bilan de chapitre : Synthèse collective', 15),
   ],
   langue: [
-    it('langue', 'Jeu de carte : Champ de bataille lexicale', 15),
-    it('langue', 'Jeu de carte : Notions grammaticales', 15),
+    it('langue', 'Jeu de carte : Champ de bataille lexicale', 15, {}),
+    it('langue', 'Jeu de carte : Notions grammaticales', 15, {}),
     it('langue', 'Leçon sur le vocabulaire au théâtre', 20, { tags: ['théâtre'] }),
     it('langue', 'Dictée sur le théâtre', 15, { tags: ['théâtre'] }),
   ],
@@ -91,8 +92,8 @@ const fill = (t: string, subject: string) => t.replace('{s}', short(subject || '
 
 /** Documents fournis avec une ressource (seuls ceux réellement annoncés : aucun contenu inventé). */
 const KIT_TITLE: Partial<Record<AidKind, string>> = { projection: 'Support à projeter', imprime: 'Support imprimé', notice: 'Notice enseignant' }
-export function makeAids(kit: AidKind[] = []): Aid[] {
-  return kit.map((kind) => ({ id: uid('a'), kind, title: KIT_TITLE[kind] ?? kind, items: [] }))
+export function makeAids(kit: AidKind[] = [], thumbs: CatalogItem['kitThumbs'] = {}): Aid[] {
+  return kit.map((kind) => ({ id: uid('a'), kind, title: KIT_TITLE[kind] ?? kind, items: [], thumb: thumbs[kind] }))
 }
 
 export function makeResource(item: CatalogItem, subject = ''): Resource {
@@ -102,7 +103,7 @@ export function makeResource(item: CatalogItem, subject = ''): Resource {
   }
   return {
     id: uid(), type: item.type, title, duration: item.duration, thumb: item.thumb, origin: item.origin, uses: item.uses, work: workOf(item.work), atelier: item.mode,
-    aids: makeAids(item.kit), source: item.source, url: item.url,
+    aids: makeAids(item.kit, item.kitThumbs), source: item.source, url: item.url,
     desc: 'Ressource éditée par Le Livre Scolaire.',
   }
 }

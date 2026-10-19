@@ -87,7 +87,7 @@ export default function ResourceCard({ resource: r, left, top, hot, selected, on
           {fan.map((a, i) => (
             <div key={a.id} className={'aid-sheet k-' + a.kind} style={{ ['--i' as string]: i, ['--n' as string]: fan.length }}>
               <b>{AID_LABEL[a.kind]}</b>
-              <i /><i style={{ width: '70%' }} /><i style={{ width: '82%' }} />
+              {a.thumb ? <img src={a.thumb} alt="" /> : <><i /><i style={{ width: '70%' }} /><i style={{ width: '82%' }} /></>}
             </div>
           ))}
         </div>

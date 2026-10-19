@@ -44,6 +44,7 @@ export default function ResourceDetail({ resource: r, onClose, onReplace, onOwn 
           {aids.map((a) => (
             <section key={a.id} className={'aid-card k-' + a.kind}>
               <header><span>{AID_LABEL[a.kind]}</span>{a.title !== AID_LABEL[a.kind] && <b>{a.title}</b>}</header>
+              {a.thumb && <img src={a.thumb} alt="" style={{ width: '100%', maxHeight: 230, objectFit: 'cover', objectPosition: 'top', borderRadius: 10, margin: '10px 0 8px', display: 'block' }} />}
               {a.items.length === 0 && <p className="detail-desc" style={{ margin: 0 }}>Document inclus dans la ressource.</p>}
               <ol>
                 {a.items.map((it, i) => (

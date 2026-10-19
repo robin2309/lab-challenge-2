@@ -5,7 +5,7 @@ export type AidKind = 'questionnaire' | 'definition' | 'correction' | 'projectio
 
 export interface AidItem { q: string; a?: string }
 /** Appareil pédagogique lié à une ressource phare. */
-export interface Aid { id: string; kind: AidKind; title: string; items: AidItem[] }
+export interface Aid { id: string; kind: AidKind; title: string; items: AidItem[]; thumb?: string }
 
 export interface Resource {
   id: string

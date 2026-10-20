@@ -12,11 +12,11 @@ import { INTRO, appearAt, easeInOut, reducedMotion } from '../intro'
 import { Circle, Star, Triangle } from './Decor'
 import { LINE_GREY, type ColorStop } from './WaveCanvas'
 import { IconX, TypeIcon } from './Icons'
-import { alternativesFor, coherentFor, emptySlot, makeResource, ownResource, resolveTitle, uid, type CatalogItem } from '../data/catalog'
+import { alternativesFor, emptySlot, makeResource, ownResource, uid, type CatalogItem } from '../data/catalog'
 import { TYPE_COLOR, type Course, type Resource, type ResourceType } from '../types'
 
 /** Cible du menu du bas : remplacer une ressource, remplir un emplacement vide, ou ajouter en fin de séance. */
-interface Target { mode: SlotMode; type: ResourceType; sessionId: string; id?: string }
+interface Target { mode: SlotMode; type: ResourceType; sessionId: string; id?: string; work?: string /* œuvre de la séance à respecter (résolution d'un conflit) */ }
 
 const SPACING = 480   // distance entre deux emplacements sur la vague
 const OFFSET = 340    // départ du premier emplacement après le début de séance
@@ -243,9 +243,15 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
   const taken = useMemo(() => new Set(course.sessions.flatMap((x) => x.resources.filter((r) => !r.empty).map((r) => r.title))), [course.sessions])
   const targetSession = target ? course.sessions.find((x) => x.id === target.sessionId) : null
   const targetRes = target?.id ? find(target.id)?.r : undefined
+  const fixWork = target?.work
   const alternatives = useMemo(
-    () => (t: ResourceType): CatalogItem[] => [...mine.filter((m) => m.type === t && m.title !== targetRes?.title), ...alternativesFor(t, subject, taken, targetRes && !targetRes.empty ? targetRes.title : undefined)].slice(0, 10),
-    [subject, taken, targetRes, mine],
+    () => (t: ResourceType): CatalogItem[] => {
+      const list = [...mine.filter((m) => m.type === t && m.title !== targetRes?.title), ...alternativesFor(t, subject, taken, targetRes && !targetRes.empty ? targetRes.title : undefined)]
+      // conflit : d'abord les ressources de l'œuvre de la séance, puis les neutres, en dernier celles qui recréeraient le conflit
+      const rank = (c: CatalogItem) => (!fixWork ? 0 : c.work === fixWork ? 0 : c.work ? 2 : 1)
+      return list.map((c, i) => ({ c, i })).sort((x, y) => rank(x.c) - rank(y.c) || x.i - y.i).map((x) => x.c).slice(0, 10)
+    },
+    [subject, taken, targetRes, mine, fixWork],
   )
   const detailRes = detailId ? find(detailId) : null
 
@@ -272,10 +278,10 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
     setSelectedId(id)
     if (target && target.id !== id) setTarget(null)
   }
-  const openReplace = (id: string) => {
+  const openReplace = (id: string, work?: string) => {
     const f = find(id); if (!f) return
     setDetailId(null); setActive(f.s.id)
-    setTarget({ mode: 'replace', type: f.r.type, sessionId: f.s.id, id }); setJump(id)
+    setTarget({ mode: 'replace', type: f.r.type, sessionId: f.s.id, id, work }); setJump(id)
   }
   const classShort = course.classe.replace(/[eè]me/i, 'e')
 
@@ -302,13 +308,6 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
     return out
   }, [course.sessions, dismissed])
   const staleIds = new Set(conflicts.map((c) => c.stale.id))
-  const resolve = (c: (typeof conflicts)[number]) => {
-    const item = coherentFor(c.stale.type, c.anchor.work!.id, taken)
-    if (item) {
-      const res = { ...makeResource(item, subject), rev: ++rev.current }
-      putAt(c.stale.id, res, `Remplacée par « ${res.title} », cohérente avec « ${c.anchor.title} » (appareils pédagogiques mis à jour).`)
-    } else clearSlot(c.stale.id)
-  }
 
   /* ---------- génération des supports : un point parcourt la timeline ---------- */
   const dotRef = useRef<HTMLDivElement>(null)
@@ -422,15 +421,12 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
           {conflicts.map((c) => {
             const mx = ((xOf.get(c.a.id) ?? 0) + (xOf.get(c.b.id) ?? 0)) / 2
             const my = waveY(mx, layout.firstX)
-            const item = coherentFor(c.stale.type, c.anchor.work!.id, taken)
             return (
               <div key={c.key} className="conflict-bubble" role="alert" style={{ left: mx - 175, top: my + 44 }}>
                 <b>⚠ Cette séance n’est plus cohérente</b>
                 <p>« {c.stale.title} » traite de <em>{c.stale.work!.label}</em>, alors que « {c.anchor.title} » porte désormais sur <em>{c.anchor.work!.label}</em>.</p>
                 <div className="cb-actions">
-                  <button className="btn primary small" onClick={() => resolve(c)}>
-                    {item ? `Remplacer par « ${resolveTitle(item.title, subject)} »` : 'Vider l’emplacement'}
-                  </button>
+                  <button className="btn primary small" onClick={() => openReplace(c.stale.id, c.anchor.work!.id)}>Remplacer</button>
                   <button className="btn ghost small" onClick={() => setDismissed(new Set(dismissed).add(c.key))}>Ignorer</button>
                 </div>
               </div>

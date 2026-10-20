@@ -50,11 +50,12 @@ export const usesLabel = (n: number): string | null =>
 
 export const CATALOG: Record<ResourceType, CatalogItem[]> = {
   texte: [
-    it('texte', 'Il y a peu de choses qui me soient impossibles', 25, { work: 'scapin', source: src('scapin', 'Acte 1, scène 2'), tags: th }),
+    it('texte', 'Il y a peu de choses qui me soient impossibles', 25, { work: 'scapin', source: src('scapin', 'Acte 1, scène 2'), tags: th, thumb: '/assets/thumb-text.jpg' }),
     it('texte', 'Vous ne le romprez point', 25, { work: 'scapin', source: src('scapin', 'Acte 1, scène 4'), tags: th }),
     it('texte', 'Je vous ai fait quelque chose, monsieur ?', 25, { work: 'scapin', source: src('scapin', 'Acte 2, scène 3'), tags: th }),
     it('texte', 'Que diable allait-il faire dans cette galère ?', 25, { work: 'scapin', source: src('scapin', 'Acte 2, scène 7'), tags: th }),
-    it('texte', 'La comédie de Martine', 25, { work: 'medecin', source: src('medecin', 'Acte 1, scène 4'), tags: th }),
+    // en tête de liste (démo) : remplacer le texte de la séance 1 par celui-ci crée un conflit avec l'entrée de chapitre sur Scapin
+    it('texte', 'La comédie de Martine', 25, { work: 'medecin', source: src('medecin', 'Acte 1, scène 4'), tags: th, pos: 0 }),
     it('texte', 'Sganarelle, médecin malgré lui', 25, { work: 'medecin', source: src('medecin', 'Acte 1, scène 5'), tags: th }),
     it('texte', 'L’imposture en action', 25, { work: 'medecin', source: src('medecin', 'Acte 2, scène 4'), tags: th }),
   ],
@@ -103,8 +104,64 @@ const fill = (t: string, subject: string) => t.replace('{s}', short(subject || '
 
 /** Documents fournis avec une ressource (seuls ceux réellement annoncés : aucun contenu inventé). */
 const KIT_TITLE: Partial<Record<AidKind, string>> = { projection: 'Support à projeter', imprime: 'Support imprimé', notice: 'Notice enseignant' }
-export function makeAids(kit: AidKind[] = [], thumbs: CatalogItem['kitThumbs'] = {}): Aid[] {
-  return kit.map((kind) => ({ id: uid('a'), kind, title: KIT_TITLE[kind] ?? kind, items: [], thumb: thumbs[kind] }))
+export function makeAids(type: ResourceType, kit: AidKind[] = [], thumbs: CatalogItem['kitThumbs'] = {}): Aid[] {
+  if (kit.length) return kit.map((kind) => ({ id: uid('a'), kind, title: KIT_TITLE[kind] ?? kind, items: [], thumb: thumbs[kind] }))
+  return demoAids(type)
+}
+
+/** Appareils pédagogiques de démonstration (questionnaire, définitions, correction) pour les ressources sans documents fournis. */
+function demoAids(type: ResourceType): Aid[] {
+  const a = (kind: AidKind, t: string, items: Aid['items']): Aid => ({ id: uid('a'), kind, title: t, items })
+  const q = (x: string) => ({ q: x })
+  switch (type) {
+    case 'texte':
+      return [
+        a('questionnaire', 'Questionnaire élève', [
+          q('Qui parle, et à qui ?'), q('Quel est le sujet de l’extrait ?'),
+          q('Relevez deux mots qui montrent l’émotion du personnage.'), q('Comment ce passage fait-il avancer l’histoire ?'),
+        ]),
+        a('definition', 'Fiche de définitions', [
+          { q: 'Registre', a: 'Ton dominant d’un texte : comique, tragique, lyrique…' },
+          { q: 'Champ lexical', a: 'Ensemble de mots qui se rapportent à une même idée.' },
+          { q: 'Quiproquo', a: 'Malentendu qui fait prendre une chose ou une personne pour une autre.' },
+        ]),
+        a('correction', 'Correction', [
+          { q: 'Qui parle, et à qui ?', a: 'Le personnage principal s’adresse à son valet.' },
+          { q: 'Quel est le sujet ?', a: 'Une dispute au sujet d’une somme d’argent.' },
+          { q: 'Deux mots d’émotion', a: '« Colère », « désespoir » (champ lexical des sentiments).' },
+          { q: 'Fait avancer l’histoire', a: 'Il déclenche le nœud de l’intrigue.' },
+        ]),
+      ]
+    case 'video':
+      return [
+        a('questionnaire', 'Questionnaire de visionnage', [
+          q('Que voit-on dans les premières secondes ?'), q('Quel détail de mise en scène vous a marqué ?'), q('Résumez la séquence en une phrase.'),
+        ]),
+        a('correction', 'Correction', [
+          { q: 'Premières secondes', a: 'Plan large sur le décor, puis entrée du personnage.' },
+          { q: 'Mise en scène', a: 'Les costumes et la lumière marquent le contraste entre les personnages.' },
+          { q: 'Résumé', a: 'Réponse libre — vérifier l’ordre des événements.' },
+        ]),
+      ]
+    case 'ludo':
+      return [
+        a('definition', 'Règle du jeu', [
+          { q: 'Mise en place', a: 'Former des équipes de 4 ; distribuer une fiche par équipe.' },
+          { q: 'Déroulement', a: 'Chaque équipe répond à tour de rôle ; 1 point par bonne réponse.' },
+          { q: 'Fin de partie', a: 'L’équipe totalisant le plus de points gagne.' },
+        ]),
+        a('correction', 'Corrigé', [
+          { q: 'Question 1', a: 'Réponse attendue : la ruse du valet.' }, { q: 'Question 2', a: 'Réponse attendue : l’avarice.' },
+        ]),
+      ]
+    case 'rituel':
+      return [
+        a('questionnaire', 'Fiche élève', [q('Je note le mot du jour :'), q('Je l’emploie dans une phrase :')]),
+        a('correction', 'Correction', [{ q: 'Phrase modèle', a: 'Le mot est employé avec son sens exact et accordé correctement.' }]),
+      ]
+    default:
+      return []
+  }
 }
 
 export function makeResource(item: CatalogItem, subject = ''): Resource {
@@ -114,7 +171,7 @@ export function makeResource(item: CatalogItem, subject = ''): Resource {
   }
   return {
     id: uid(), type: item.type, title, duration: item.duration, thumb: item.thumb, origin: item.origin, uses: item.uses, work: workOf(item.work), atelier: item.mode,
-    aids: makeAids(item.kit, item.kitThumbs), source: item.source, url: item.url,
+    aids: makeAids(item.type, item.kit, item.kitThumbs), source: item.source, url: item.url,
     desc: 'Ressource éditée par Le Livre Scolaire.',
   }
 }

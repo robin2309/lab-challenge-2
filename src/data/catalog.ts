@@ -62,10 +62,10 @@ export const CATALOG: Record<ResourceType, CatalogItem[]> = {
   video: [
     it('video', 'Entrée de chapitre : Les Fourberies de Scapin', 5, { work: 'scapin', pos: 1, thumb: IMG + 'entree-scapin.jpg', tags: th }),
     it('video', 'Entrée de chapitre : Le Malade imaginaire', 5, { work: 'malade', thumb: IMG + 'entree-malade-imaginaire.jpg', tags: th }),
-    it('video', 'Le théâtre au temps de Molière', 8, { tags: th }),
-    it('video', 'Présentation de Molière', 6, { tags: th }),
-    it('video', 'Mise en scène du Médecin malgré lui - Acte 1 scène 1', 10, { work: 'medecin', tags: th }),
-    it('video', 'Le Monde : Pourquoi Molière est devenu aussi célèbre', 8, { url: 'https://www.youtube.com/watch?v=NeFjybzGbzc', source: 'Le Monde (YouTube)', tags: th }),
+    it('video', 'Le théâtre au temps de Molière', 8, { tags: th, thumb: IMG + 'theatre-temps-moliere.webp' }),
+    it('video', 'Présentation de Molière', 6, { tags: th, thumb: IMG + 'presentation-moliere.png' }),
+    it('video', 'Mise en scène du Médecin malgré lui - Acte 1 scène 1', 10, { work: 'medecin', tags: th, thumb: IMG + 'mise-en-scene-medecin-malgre-lui.webp' }),
+    it('video', 'Le Monde : Pourquoi Molière est devenu aussi célèbre', 8, { url: 'https://www.youtube.com/watch?v=NeFjybzGbzc', source: 'Le Monde (YouTube)', tags: th, thumb: IMG + 'le-monde-moliere-celebre.webp' }),
   ],
   ludo: [
     it('ludo', 'Jeu à imprimer : Je peux tout expliquer', 20, {}),
@@ -76,8 +76,8 @@ export const CATALOG: Record<ResourceType, CatalogItem[]> = {
   ],
   rituel: [
     it('rituel', 'Dés d’expression', 5, { thumb: IMG + 'des-expression.jpg' }),
-    it('rituel', 'Citation du jour', 5),
-    it('rituel', 'Dictée flash', 10),
+    it('rituel', 'Citation du jour', 5, { thumb: IMG + 'citation-du-jour.webp' }),
+    it('rituel', 'Dictée flash', 10, { thumb: IMG + 'dictee-flash.png' }),
     it('rituel', 'Analyse de phrase', 5),
     it('rituel', 'La figure de style du jour', 5),
   ],

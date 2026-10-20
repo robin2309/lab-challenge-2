@@ -1,7 +1,7 @@
 import { IconX } from './Icons'
 
 const FILES = [
-  { name: '1-Guide-accompagnement-prof.pdf', title: 'Guide d’accompagnement', desc: 'Le déroulé séance par séance, avec le matériel à préparer.', kind: 'PDF', size: '4 Ko', art: 'guide' },
+  { name: '1-Livre-du-prof.pdf', title: 'Livre du prof', desc: 'Le déroulé séance par séance, avec le matériel à préparer.', kind: 'PDF', size: '4 Ko', art: 'guide' },
   { name: '2-Support-de-projection.pptx', title: 'Support de projection', desc: 'Les vidéos sont intégrées : aucun autre fichier à ouvrir pendant le cours.', kind: 'PowerPoint', size: '56 Ko', art: 'slides' },
   { name: '3-Fiches-eleves.pdf', title: 'Fichiers pour les élèves', desc: 'Prêts à imprimer, une fiche par séance.', kind: 'PDF', size: '4 Ko', art: 'fiches' },
 ]

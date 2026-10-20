@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { usesLabel } from '../data/catalog'
 import { AID_LABEL, ORIGIN_LABEL, TYPE_LABEL, type Resource } from '../types'
 import { IconX, TypeIcon } from './Icons'
@@ -7,11 +8,12 @@ interface Props {
   resource: Resource
   onClose: () => void
   onReplace: () => void
-  onOwn: () => void
+  onAddAid: (file: File) => void // le prof joint son propre document comme appareil pédagogique
 }
 
-export default function ResourceDetail({ resource: r, onClose, onReplace, onOwn }: Props) {
+export default function ResourceDetail({ resource: r, onClose, onReplace, onAddAid }: Props) {
   const aids = r.aids
+  const input = useRef<HTMLInputElement>(null)
   return (
     <div className="overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="detail" role="dialog" aria-label={r.title}>
@@ -30,7 +32,6 @@ export default function ResourceDetail({ resource: r, onClose, onReplace, onOwn 
           {r.desc && <p className="detail-desc">{r.desc}</p>}
           <div className="detail-actions">
             <button className="btn primary" onClick={onReplace}>Remplacer cette ressource</button>
-            <button className="btn ghost" onClick={onOwn}>+ Ajouter ma propre ressource</button>
           </div>
         </div>
         <div className="detail-aids">
@@ -42,7 +43,7 @@ export default function ResourceDetail({ resource: r, onClose, onReplace, onOwn 
             <section key={a.id} className={'aid-card k-' + a.kind}>
               <header><span>{AID_LABEL[a.kind]}</span>{a.title !== AID_LABEL[a.kind] && <b>{a.title}</b>}</header>
               {a.thumb && <img src={a.thumb} alt="" style={{ width: '100%', maxHeight: 230, objectFit: 'cover', objectPosition: 'top', borderRadius: 10, margin: '10px 0 8px', display: 'block' }} />}
-              {a.items.length === 0 && <p className="detail-desc" style={{ margin: 0 }}>Document inclus dans la ressource.</p>}
+              {a.items.length === 0 && <p className="detail-desc" style={{ margin: 0 }}>{a.file ? `Fichier importé : ${a.file}` : 'Document inclus dans la ressource.'}</p>}
               <ol>
                 {a.items.map((it, i) => (
                   <li key={i}><span className="aq">{it.q}</span>{it.a && <span className="aa">{it.a}</span>}</li>
@@ -50,6 +51,8 @@ export default function ResourceDetail({ resource: r, onClose, onReplace, onOwn 
               </ol>
             </section>
           ))}
+          <input ref={input} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onAddAid(f); e.target.value = '' }} />
+          <button className="aid-add" onClick={() => input.current?.click()} title="Joindre un document depuis votre ordinateur"><span aria-hidden>+</span> Ajouter</button>
         </div>
       </div>
     </div>

@@ -27,7 +27,6 @@ const IMG = '/assets/ressources/'
 export const WORKS: Record<string, string> = {
   scapin: 'Les Fourberies de Scapin',
   medecin: 'Le Médecin malgré lui',
-  malade: 'Le Malade imaginaire',
 }
 const workOf = (id?: string) => (id ? { id, label: WORKS[id] } : undefined)
 
@@ -61,7 +60,7 @@ export const CATALOG: Record<ResourceType, CatalogItem[]> = {
   ],
   video: [
     it('video', 'Entrée de chapitre : Les Fourberies de Scapin', 5, { work: 'scapin', pos: 1, thumb: IMG + 'entree-scapin.jpg', tags: th }),
-    it('video', 'Entrée de chapitre : Le Malade imaginaire', 5, { work: 'malade', thumb: IMG + 'entree-malade-imaginaire.jpg', tags: th }),
+    it('video', 'Entrée de chapitre : Le Médecin malgré lui', 5, { work: 'medecin', thumb: IMG + 'entree-medecin-malgre-lui.jpg', tags: th }),
     it('video', 'Le théâtre au temps de Molière', 8, { tags: th, thumb: IMG + 'theatre-temps-moliere.webp' }),
     it('video', 'Présentation de Molière', 6, { tags: th, thumb: IMG + 'presentation-moliere.png' }),
     it('video', 'Mise en scène du Médecin malgré lui - Acte 1 scène 1', 10, { work: 'medecin', tags: th, thumb: IMG + 'mise-en-scene-medecin-malgre-lui.webp' }),
@@ -83,7 +82,7 @@ export const CATALOG: Record<ResourceType, CatalogItem[]> = {
   ],
   atelier: [
     it('atelier', 'Atelier oral : mettre en scène un extrait', 25, { mode: 'oral', tags: ['théâtre'] }),
-    it('atelier', 'Bilan de lecture', 15),
+    it('atelier', 'Bilan de lecture', 15, { thumb: IMG + 'bilan-de-lecture.png' }),
     it('atelier', 'Atelier d’écriture guidée : écrire une scène de théâtre', 25, { mode: 'ecrit', tags: ['théâtre'] }),
     it('atelier', 'Atelier d’écriture guidée : écrire une tirade', 25, { mode: 'ecrit', tags: ['théâtre'] }),
     it('atelier', 'Atelier oral : Lecture expressive', 15, { mode: 'oral' }),
@@ -94,7 +93,7 @@ export const CATALOG: Record<ResourceType, CatalogItem[]> = {
   langue: [
     it('langue', 'Jeu de carte : Champ de bataille lexicale', 15, {}),
     it('langue', 'Jeu de carte : Notions grammaticales', 15, {}),
-    it('langue', 'Leçon sur le vocabulaire au théâtre', 20, { tags: ['théâtre'] }),
+    it('langue', 'Leçon sur le vocabulaire au théâtre', 20, { tags: ['théâtre'], thumb: IMG + 'lecon-vocabulaire-theatre.png' }),
     it('langue', 'Dictée sur le théâtre', 15, { tags: ['théâtre'] }),
   ],
 }

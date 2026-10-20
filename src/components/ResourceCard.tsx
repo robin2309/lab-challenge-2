@@ -97,7 +97,7 @@ export default function ResourceCard({ resource: r, left, top, hot, selected, on
           ? <div className="empty-slot"><span className="plus-big">+</span><span>Placez ou créez une ressource</span></div>
           : r.thumb ? <img src={r.thumb} alt="" /> : <FakeThumb type={r.type} title={r.title} />}
       </button>
-      {conflict && <span className="conflict-badge">⚠ Incohérent</span>}
+      {conflict && <span className="conflict-badge" role="img" aria-label="Ressource incohérente avec la séance">⚠</span>}
       {selected && !r.empty && (
         <div className="cmenu" role="menu" aria-label={`Actions pour ${r.title}`}>
           <button role="menuitem" ref={(el) => el?.focus({ preventScroll: true })} onClick={onConsult}><IconEdit /> Consulter</button>

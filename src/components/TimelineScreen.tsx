@@ -149,6 +149,12 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
     say(from === to ? `« ${r.title} » déplacée.` : `« ${r.title} » déplacée vers la séance ${ss.indexOf(to) + 1}.`, () => setCourse(prev))
   }
   const setMenuClosed = () => { setTarget(null); setDetailId(null) }
+  /** Document joint par le prof aux appareils pédagogiques d'une ressource. */
+  const addAid = (id: string, file: File) => {
+    const title = file.name.replace(/\.[^.]+$/, '')
+    mapSessions((rs) => rs.map((r) => (r.id === id ? { ...r, aids: [...r.aids, { id: uid('a'), kind: 'document', title, items: [], file: file.name }] } : r)))
+    say(`« ${title} » ajouté aux appareils pédagogiques.`)
+  }
   const closeTray = useCallback(() => setTarget(null), [])
   const place = (t: Target, res0: Resource) => {
     const res = { ...res0, rev: ++rev.current } // la ressource la plus récemment choisie fait foi en cas d’incohérence
@@ -508,7 +514,7 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
       {genRun && (
         <div className="gen-status" role="status">
           <i className="spin" />
-          {['Rédaction du guide d’accompagnement…', 'Intégration des vidéos au support de projection…', 'Mise en page des fiches élèves…'][genStep]}
+          {['Rédaction du livre du prof…', 'Intégration des vidéos au support de projection…', 'Mise en page des fiches élèves…'][genStep]}
         </div>
       )}
       {genOpen && <GenerateModal title={course.title} onClose={() => setGenOpen(false)} />}
@@ -517,7 +523,7 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
           resource={detailRes.r}
           onClose={() => setDetailId(null)}
           onReplace={() => openReplace(detailRes.r.id)}
-          onOwn={() => setOwn({ mode: 'replace', type: detailRes.r.type, sessionId: detailRes.s.id, id: detailRes.r.id })}
+          onAddAid={(f) => addAid(detailRes.r.id, f)}
         />
       )}
       {own && (

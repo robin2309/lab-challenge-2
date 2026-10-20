@@ -1,11 +1,11 @@
 export type ResourceType = 'texte' | 'video' | 'ludo' | 'rituel' | 'atelier' | 'langue'
 export type AtelierMode = 'oral' | 'ecrit'
 export type Origin = 'lls' | 'communaute' | 'mine'
-export type AidKind = 'questionnaire' | 'definition' | 'correction' | 'projection' | 'imprime' | 'notice'
+export type AidKind = 'questionnaire' | 'definition' | 'correction' | 'projection' | 'imprime' | 'notice' | 'document'
 
 export interface AidItem { q: string; a?: string }
 /** Appareil pédagogique lié à une ressource phare. */
-export interface Aid { id: string; kind: AidKind; title: string; items: AidItem[]; thumb?: string }
+export interface Aid { id: string; kind: AidKind; title: string; items: AidItem[]; thumb?: string; file?: string /* document importé par le prof */ }
 
 export interface Resource {
   id: string
@@ -72,5 +72,5 @@ export const EMPTY_COLOR = '#d3c9b8'
 export const ORIGIN_LABEL: Record<Origin, string> = { lls: 'LLS', communaute: 'Communauté', mine: 'Ma ressource' }
 export const AID_LABEL: Record<AidKind, string> = {
   questionnaire: 'Questionnaire', definition: 'Définitions', correction: 'Correction',
-  projection: 'Support à projeter', imprime: 'Support imprimé', notice: 'Notice enseignant',
+  projection: 'Support à projeter', imprime: 'Support imprimé', notice: 'Notice enseignant', document: 'Mon document',
 }

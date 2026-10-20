@@ -68,7 +68,7 @@ export const CATALOG: Record<ResourceType, CatalogItem[]> = {
     it('video', 'Le Monde : Pourquoi Molière est devenu aussi célèbre', 8, { url: 'https://www.youtube.com/watch?v=NeFjybzGbzc', source: 'Le Monde (YouTube)', tags: th, thumb: IMG + 'le-monde-moliere-celebre.webp' }),
   ],
   ludo: [
-    it('ludo', 'Jeu à imprimer : Je peux tout expliquer', 20, {}),
+    it('ludo', 'Jeu à imprimer : Je peux tout expliquer', 20, { thumb: IMG + 'jeu-imprimer-je-peux-tout-expliquer.jpg' }),
     it('ludo', 'Escape game', 30, { kit: ['projection', 'imprime', 'notice'], thumb: IMG + 'escape-support-projeter.jpg' }),
     it('ludo', 'Jeu de carte sur le genre littéraire du théâtre', 15, { tags: ['théâtre'], thumb: IMG + 'carte-genre-theatre.png' }),
     it('ludo', 'Jeu de carte : Champ de bataille lexicale', 15, { thumb: IMG + 'carte-champ-bataille-lexicale.png' }),

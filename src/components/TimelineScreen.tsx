@@ -24,7 +24,7 @@ const START = 400     // début de la 1re séance (la zone défile sous le panne
 const CY = 445        // axe de la vague
 const AMP = 126       // amplitude
 const NODE_R = 26
-const SEP_GAP = 170   // distance entre l’emplacement libre de fin de séance (demi-largeur 142 px) et le séparateur suivant ; reste < 180 pour que l’étiquette « Séance n » ne passe pas sous la 1re carte
+const SEP_GAP = 170   // distance entre la dernière ressource de la séance (demi-largeur 140 px) et le séparateur suivant ; reste < 180 pour que l’étiquette « Séance n » ne passe pas sous la 1re carte
 
 /** Formes colorées derrière une ressource de ludopédagogie (dans le style des formes de la maquette). */
 function LudoShape({ k, x, top, below }: { k: number; x: number; top: number; below: boolean }) {
@@ -175,7 +175,8 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
     let g = 0
     const sessions = course.sessions.map((s) => {
       const slots = s.resources.map((r) => ({ r, x: firstX + SPACING * g++ }))
-      const phX = firstX + SPACING * g++
+      // fin de séance : la dernière ressource, ou une place réservée si la séance est vide
+      const phX = slots.length ? slots[slots.length - 1].x : firstX + SPACING * g++
       const out = { s, sx, slots, phX }
       sx = phX + SEP_GAP
       return out
@@ -186,12 +187,12 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
 
   const innerW = trayOpen ? layout.width / 0.84 : layout.width
 
-  /* couleurs de la ligne : une par emplacement (gris si vide ou libre), en dégradé entre deux emplacements */
+  /* couleurs de la ligne : une par emplacement (gris si vide), en dégradé entre deux emplacements */
   const stopsKey = useMemo(() => {
     const st: ColorStop[] = []
     layout.sessions.forEach(({ slots, phX }) => {
       slots.forEach(({ r, x }) => st.push({ x, color: r.empty ? LINE_GREY : TYPE_COLOR[r.type] }))
-      st.push({ x: phX, color: LINE_GREY })
+      if (!slots.length) st.push({ x: phX, color: LINE_GREY })
     })
     if (st.length) st.unshift({ x: 0, color: st[0].color })
     return JSON.stringify(st)
@@ -383,12 +384,12 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
         hoverId={hoverId} selectedId={selectedId} onHover={setHoverId}
       />
 
-      <div className="timeline-scroll" ref={scroller} onMouseDown={(e) => { if (!(e.target as HTMLElement).closest('.rcard, .placeholder-card, .session-tag-wrap, .add-session')) setSelectedId(null) }}>
+      <div className="timeline-scroll" ref={scroller} onMouseDown={(e) => { if (!(e.target as HTMLElement).closest('.rcard, .session-tag-wrap, .add-session')) setSelectedId(null) }}>
         <div className="timeline-inner" style={{ width: innerW, transform: trayOpen ? 'translateY(-44px) scale(.84)' : undefined, transformOrigin: '0 150px', transition: 'transform .3s' }}>
           {/* vague */}
           <svg width={innerW} height={990} style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}>
             {/* traits de liaison */}
-            {layout.sessions.flatMap(({ slots, phX }) => [...slots.map((s) => s.x), phX]).map((x, i) => {
+            {layout.sessions.flatMap(({ slots }) => slots.map((s) => s.x)).map((x, i) => {
               const y = waveY(x, layout.firstX)
               const crest = isCrest(x)
               const fx = introOn ? { className: 'in-opacity', style: { animationDelay: `${appearAt(x, viewW).toFixed(2)}s` } } : {}
@@ -454,7 +455,7 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
 
                 {slots.map(({ x }, i) => {
                   if (conflicts.some((c) => c.a.id === slots[i].r.id)) return null
-                  const mx = x + SPACING / 2
+                  const mx = x + (i === slots.length - 1 ? SEP_GAP / 2 : SPACING / 2) // le dernier + reste avant le séparateur de séance
                   const my = waveY(mx, layout.firstX)
                   return (
                     <div key={'plus' + i} className={'intro-wrap' + (introOn ? ' in-fade' : '')} style={introOn ? at(mx).style : undefined}>
@@ -483,31 +484,6 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
                   )
                 })}
 
-                {/* emplacement libre */}
-                {(() => {
-                  const y = waveY(phX, layout.firstX)
-                  const crest = isCrest(phX)
-                  const top = crest ? y + 200 : y - 386
-                  return (
-                    <div className={'intro-wrap' + (introOn ? ' in-fade' : '')} style={introOn ? at(phX, 0.1).style : undefined}>
-                      <div
-                        className={'placeholder-card' + (isActive && target?.mode === 'append' ? ' active' : '')}
-                        style={{ left: phX - 142, top }}
-                        onClick={() => { setActive(s.id); setSelectedId(null); setTarget({ mode: 'append', type: target?.type ?? 'texte', sessionId: s.id }) }}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) importFile(f, { mode: 'append', type: 'texte', sessionId: s.id }) }}
-                      >
-                        <span className="plus-hover">+</span>Placez ou créez une ressource
-                        {s.resources.length === 0 && (
-                          <button className="x" onClick={(e) => { e.stopPropagation(); deleteSession(s.id) }} aria-label="Supprimer cette séance vide"><IconX size={22} /></button>
-                        )}
-                      </div>
-                      <div style={{ position: 'absolute', left: phX - 22, top: y - 22, width: 44, height: 44, borderRadius: '50%', background: '#e3cfa6', pointerEvents: 'none', display: 'grid', placeItems: 'center' }}>
-                        <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff' }} />
-                      </div>
-                    </div>
-                  )
-                })()}
               </div>
             )
           })}

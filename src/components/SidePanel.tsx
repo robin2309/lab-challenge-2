@@ -95,7 +95,15 @@ export default function SidePanel({ course, onAddLudo, onJump, onJumpSession, on
           <>
             {course.sessions.map((s, i) => (
               <div key={s.id} onDragOver={(e) => { if (!dragId) return; e.preventDefault(); setOver({ sid: s.id, index: s.resources.length }) }} onDrop={(e) => { e.preventDefault(); drop() }}>
-                <button className="summary-session" onClick={() => onJumpSession(s.id)} title="Aller à cette séance">Séance {i + 1} <span>{s.resources.reduce((a, r) => a + r.duration, 0)} min.</span></button>
+                {(() => {
+                  const used = s.resources.reduce((a, r) => a + r.duration, 0)
+                  const over = used > course.sessionMinutes
+                  return (
+                    <button className="summary-session" onClick={() => onJumpSession(s.id)} title={over ? undefined : 'Aller à cette séance'}>
+                      Séance {i + 1} <span className={over ? 'over' : undefined} data-tip={over ? 'Séance trop longue' : undefined}>{used} min.</span>
+                    </button>
+                  )
+                })()}
                 {s.resources.length === 0 && <div className={'summary-empty' + (over?.sid === s.id ? ' drop' : '')}>{dragId ? 'Déposer ici' : 'Aucune ressource'}</div>}
                 {s.resources.map((r, ri) => (
                   <button key={r.id} draggable onDragStart={(e) => { setDragId(r.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', r.id) }} onDragEnd={endDrag}

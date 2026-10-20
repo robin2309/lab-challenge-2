@@ -76,7 +76,7 @@ export const CATALOG: Record<ResourceType, CatalogItem[]> = {
   ],
   rituel: [
     it('rituel', 'Dés d’expression', 5, { thumb: IMG + 'des-expression.jpg' }),
-    it('rituel', 'Citation du jour', 5, { thumb: IMG + 'citation-du-jour.webp' }),
+    it('rituel', 'Citation du jour', 5, { thumb: IMG + 'citation-du-jour.png' }),
     it('rituel', 'Dictée flash', 10, { thumb: IMG + 'dictee-flash.png' }),
     it('rituel', 'Analyse de phrase', 5),
     it('rituel', 'La figure de style du jour', 5),

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { TYPE_LABEL, TYPE_COLOR, ORIGIN_LABEL, type ResourceType } from '../types'
-import { resolveTitle, usesLabel, type CatalogItem } from '../data/catalog'
-import { IconDoc, IconFeather, IconPerson, IconPlay, IconStar, IconSun, IconX } from './Icons'
+import { resolveTitle, type CatalogItem } from '../data/catalog'
+import { IconDoc, IconFeather, IconHeart, IconPerson, IconPlay, IconStar, IconSun } from './Icons'
 import { FakeThumb } from './ResourceCard'
 
 const TABS: { type: ResourceType; icon: React.ReactElement; color: string }[] = [
@@ -20,32 +20,42 @@ interface Props {
   type: ResourceType
   subject: string
   heading: string          // ex. « Remplacer Lecture de texte »
-  sessionLabel: string     // ex. « séance 2 »
   alternatives: (t: ResourceType) => CatalogItem[]
   /** minutes restantes dans la séance hors ressource remplacée */
   room: number
   onPick: (it: CatalogItem) => void
-  onOwn: (t: ResourceType) => void
   onFile: (f: File) => void
-  onClose: () => void
+  onClose: () => void       // clic en dehors du menu
   className?: string
   style?: React.CSSProperties
 }
 
 const VISIBLE = 5
 
-export default function SlotMenu({ mode, type: t0, subject, heading, sessionLabel, alternatives, room, onPick, onOwn, onFile, onClose, className = '', style }: Props) {
+export default function SlotMenu({ mode, type: t0, subject, heading, alternatives, room, onPick, onFile, onClose, className = '', style }: Props) {
   const [type, setType] = useState(t0)
   const [more, setMore] = useState(false)
   const [drag, setDrag] = useState(false)
   const input = useRef<HTMLInputElement>(null)
+  const root = useRef<HTMLDivElement>(null)
+  // fermeture par un clic en dehors du menu. Ne ferment pas : les fenêtres modales ouvertes par-dessus, et les
+  // éléments de la ligne qui pilotent eux-mêmes le menu (sinon la ligne se redimensionne sous le curseur et le clic est perdu)
+  useEffect(() => {
+    const h = (e: PointerEvent) => {
+      const el = e.target as Element
+      if (root.current?.contains(el) || el.closest?.('.overlay, .rcard, .line-plus, .conflict-bubble, .add-session')) return
+      onClose()
+    }
+    document.addEventListener('pointerdown', h)
+    return () => document.removeEventListener('pointerdown', h)
+  }, [onClose])
   useEffect(() => { setType(t0); setMore(false) }, [t0, heading])
   const items = useMemo(() => alternatives(type), [alternatives, type])
   const shown = more ? items : items.slice(0, VISIBLE)
   const hidden = items.length - VISIBLE
 
   return (
-    <div className={'slotmenu ' + className + (drag ? ' dragging' : '')} style={style} role="dialog" aria-label={heading}
+    <div ref={root} className={'slotmenu ' + className + (drag ? ' dragging' : '')} style={style} role="dialog" aria-label={heading}
       onDragOver={(e) => { e.preventDefault(); setDrag(true) }} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDrag(false) }}
       onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) onFile(f) }}>
       {drag && <div className="sm-drop">Déposez votre fichier pour l’ajouter ici</div>}
@@ -59,17 +69,8 @@ export default function SlotMenu({ mode, type: t0, subject, heading, sessionLabe
         </div>
       )}
       <div className="sm-body">
-        <div className="sm-head">
-          <div className="sm-title">
-            <h3>{heading}</h3>
-            <p>{mode === 'replace' && type === t0 ? `Autres ${TYPE_LABEL[type].toLowerCase()} adaptés à la ${sessionLabel}` : `${TYPE_LABEL[type]} adaptés à la ${sessionLabel}`}</p>
-          </div>
-          <input ref={input} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = '' }} />
-          <button className="sm-own" onClick={() => input.current?.click()} title="Choisir un fichier sur votre ordinateur (ou le glisser ici)"><span>+</span> Importer ma ressource</button>
-          <button className="sm-link" onClick={() => onOwn(type)}>Sans fichier</button>
-          <button className="lib-close" onClick={onClose} aria-label="Fermer" title="Fermer (Échap)"><IconX size={16} /></button>
-        </div>
-
+        <input ref={input} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = '' }} />
+        <div className="sm-row">
         <div className={'sm-grid' + (more ? ' more' : '')}>
           {shown.map((it) => {
             const title = resolveTitle(it.title, subject)
@@ -80,11 +81,18 @@ export default function SlotMenu({ mode, type: t0, subject, heading, sessionLabe
                   {it.thumb ? <img src={it.thumb} alt="" /> : <FakeThumb type={it.type} title={title} />}
                   <span className="dur-pill">{it.duration} min.</span>
                   <span className={'origin-pill ' + it.origin}>{ORIGIN_LABEL[it.origin]}</span>
+                  {it.origin !== 'mine' && it.uses > 0 && (
+                    <span className="uses-pill" title={`Utilisée par ${it.uses.toLocaleString('fr-FR')} enseignants`}><IconHeart />{it.uses.toLocaleString('fr-FR')}</span>
+                  )}
                   <span className="add-overlay">{mode === 'replace' ? 'Remplacer par celle-ci' : 'Placer ici'}</span>
                 </div>
                 <div className="t">{title}</div>
-                <div className="d">{it.origin === 'mine' ? 'Mes ressources' : (it.source ?? '\u00a0')}{it.used && <span> · déjà dans la ligne</span>}{over && <span className="warn"> · dépasse la séance</span>}</div>
-                {it.origin !== 'mine' && <div className="u">{usesLabel(it.uses)}</div>}
+                {/* une seule ligne d'infos : mentions d'abord, puis la source (hauteur identique pour toutes les cartes) */}
+                <div className="d">
+                  {it.used && <span>Déjà utilisée</span>}
+                  {over && <span className="warn">Dépasse la séance</span>}
+                  <span>{it.origin === 'mine' ? 'Mes ressources' : (it.source ?? '\u00a0')}</span>
+                </div>
               </button>
             )
           })}
@@ -96,6 +104,12 @@ export default function SlotMenu({ mode, type: t0, subject, heading, sessionLabe
             </button>
           )}
           {items.length === 0 && <div className="lib-empty">Aucune autre ressource de ce type pour cette séance. Ajoutez la vôtre.</div>}
+        </div>
+        <button className="sm-card sm-import" onClick={() => input.current?.click()} title="Choisir un fichier sur votre ordinateur (ou le glisser sur ce menu)">
+          <div className="thumb"><span className="plus" aria-hidden>+</span></div>
+          <div className="t">Importer ma ressource</div>
+          <div className="d"><span>ou glissez un fichier ici</span></div>
+        </button>
         </div>
         {more && <button className="sm-less" onClick={() => setMore(false)}>Voir moins</button>}
       </div>

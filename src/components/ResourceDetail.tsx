@@ -1,5 +1,4 @@
 import { usesLabel } from '../data/catalog'
-import { useState } from 'react'
 import { AID_LABEL, ORIGIN_LABEL, TYPE_LABEL, type Resource } from '../types'
 import { IconX, TypeIcon } from './Icons'
 import { FakeThumb } from './ResourceCard'
@@ -12,8 +11,7 @@ interface Props {
 }
 
 export default function ResourceDetail({ resource: r, onClose, onReplace, onOwn }: Props) {
-  const [corr, setCorr] = useState(false)
-  const aids = r.aids.filter((a) => corr || a.kind !== 'correction')
+  const aids = r.aids
   return (
     <div className="overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="detail" role="dialog" aria-label={r.title}>
@@ -38,9 +36,6 @@ export default function ResourceDetail({ resource: r, onClose, onReplace, onOwn 
         <div className="detail-aids">
           <div className="detail-aids-head">
             <h3>Appareils pédagogiques <small>({r.aids.length})</small></h3>
-            {r.aids.some((a) => a.kind === 'correction') && (
-              <button className={'chip-toggle' + (corr ? ' on' : '')} onClick={() => setCorr(!corr)} aria-pressed={corr}>{corr ? 'Masquer' : 'Afficher'} les corrections</button>
-            )}
           </div>
           {aids.length === 0 && <p className="detail-desc">Aucun appareil pédagogique lié à cette ressource.</p>}
           {aids.map((a) => (

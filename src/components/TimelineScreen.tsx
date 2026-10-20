@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Navbar from './Navbar'
 import SidePanel from './SidePanel'
 import SlotMenu, { type SlotMode } from './SlotMenu'
@@ -149,6 +149,7 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
     say(from === to ? `« ${r.title} » déplacée.` : `« ${r.title} » déplacée vers la séance ${ss.indexOf(to) + 1}.`, () => setCourse(prev))
   }
   const setMenuClosed = () => { setTarget(null); setDetailId(null) }
+  const closeTray = useCallback(() => setTarget(null), [])
   const place = (t: Target, res0: Resource) => {
     const res = { ...res0, rev: ++rev.current } // la ressource la plus récemment choisie fait foi en cas d’incohérence
     if (t.mode === 'append') { addResource(res, t.sessionId); setSelectedId(res.id); say(`« ${res.title} » ajoutée à la séance ${course.sessions.findIndex((s) => s.id === t.sessionId) + 1}.`) }
@@ -435,8 +436,6 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
           })}
 
           {layout.sessions.map(({ s, sx, slots, phX }, si) => {
-            const used = s.resources.reduce((a, r) => a + r.duration, 0)
-            const over = used > course.sessionMinutes
             const isActive = s.id === active
             return (
               <div key={s.id}>
@@ -447,9 +446,6 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
                     Séance {si + 1}
                   </button>
                   <button className="session-x" style={{ left: sx + 148, top: 166 }} onClick={() => deleteSession(s.id)} aria-label={`Supprimer la séance ${si + 1}`}><IconX size={12} /></button>
-                </div>
-                <div className={'session-meta' + (over ? ' over' : '')} style={{ left: sx + 14, top: 240 }}>
-                  {used} / {course.sessionMinutes} min.{over && ' · trop long'}
                 </div>
                 </div>
 
@@ -497,13 +493,11 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
           className={introOn ? 'in-up' : ''} style={delayed(0.7)}
           mode={target.mode} type={target.type} subject={subject}
           heading={target.mode === 'replace' && targetRes ? `Remplacer « ${targetRes.title} »` : target.mode === 'fill' ? 'Choisir une ressource pour cet emplacement' : `Ajouter à la séance ${course.sessions.indexOf(targetSession) + 1}`}
-          sessionLabel={`séance ${course.sessions.indexOf(targetSession) + 1}`}
           alternatives={alternatives}
           room={course.sessionMinutes - targetSession.resources.reduce((a, r) => a + (r.id === target.id ? 0 : r.duration), 0)}
           onPick={(it) => place(target, makeResource(it, subject))}
-          onOwn={(t) => { setPending(null); setOwn({ ...target, type: t }) }}
           onFile={(f) => importFile(f, target)}
-          onClose={() => setTarget(null)}
+          onClose={closeTray}
         />
       )}
 

@@ -10,7 +10,7 @@ import ResourceCard from './ResourceCard'
 import WaveCanvas from './WaveCanvas'
 import { INTRO, appearAt, easeInOut, reducedMotion } from '../intro'
 import { Circle, Star, Triangle } from './Decor'
-import { LINE_GREY, type ColorStop } from './WaveCanvas'
+import { LINE_EMPTY, type ColorStop } from './WaveCanvas'
 import { IconX, TypeIcon } from './Icons'
 import { alternativesFor, emptySlot, makeResource, ownResource, uid, type CatalogItem } from '../data/catalog'
 import { TYPE_COLOR, type Course, type Resource, type ResourceType } from '../types'
@@ -187,12 +187,12 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
 
   const innerW = trayOpen ? layout.width / 0.84 : layout.width
 
-  /* couleurs de la ligne : une par emplacement (gris si vide), en dégradé entre deux emplacements */
+  /* couleurs de la ligne : une par emplacement (blanc si vide), en dégradé entre deux emplacements */
   const stopsKey = useMemo(() => {
     const st: ColorStop[] = []
     layout.sessions.forEach(({ slots, phX }) => {
-      slots.forEach(({ r, x }) => st.push({ x, color: r.empty ? LINE_GREY : TYPE_COLOR[r.type] }))
-      if (!slots.length) st.push({ x: phX, color: LINE_GREY })
+      slots.forEach(({ r, x }) => st.push({ x, color: r.empty ? LINE_EMPTY : TYPE_COLOR[r.type] }))
+      if (!slots.length) st.push({ x: phX, color: LINE_EMPTY })
     })
     if (st.length) st.unshift({ x: 0, color: st[0].color })
     return JSON.stringify(st)

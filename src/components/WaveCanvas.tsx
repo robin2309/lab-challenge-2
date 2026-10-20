@@ -2,26 +2,22 @@ import { useLayoutEffect, useRef } from 'react'
 import { FLAT_Y, INTRO, TIMELINE_TOP, amplitudeAt, easeOutCubic } from '../intro'
 
 /**
- * Trait de la ligne : un ruban d'épaisseur légèrement irrégulière (sans texture), rempli d'un dégradé
+ * Trait de la ligne : un ruban lisse d'épaisseur constante (sans texture), rempli d'un dégradé
  * horizontal dont les couleurs viennent des types de ressources posés sur chaque emplacement
- * (gris tant qu'un emplacement est vide).
+ * (blanc tant qu'un emplacement est vide).
  */
-const THICKNESS = 27   // épaisseur moyenne du trait (px de maquette)
+const THICKNESS = 27   // épaisseur du trait (px de maquette)
 const DENSITY = 2
 
 export interface ColorStop { x: number; color: string }
-export const LINE_GREY = '#d3c9b8'
+export const LINE_GREY = '#d3c9b8' // ligne plate de l'écran 1, avant l'arrivée des couleurs
+export const LINE_EMPTY = '#ffffff' // emplacement ou séance sans ressource
 
 const hex = (c: string) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16))
 const mixHex = (a: string, b: string, t: number) => {
   const A = hex(a), B = hex(b)
   return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`
 }
-
-/** épaisseur et décalage vertical irréguliers (déterministes, indexés sur x : le trait ne « glisse » pas quand la ligne ondule) */
-const wobble = (x: number) => 1 + 0.08 * Math.sin(x / 23 + 0.4) + 0.045 * Math.sin(x / 9.7 + 1.3) + 0.04 * Math.sin(x / 41 + 2.1)
-const jitter = (x: number) => 0.8 * Math.sin(x / 17 + 2) + 0.4 * Math.sin(x / 6.3)
-const grain = (x: number, k: number) => { const v = Math.sin(x * 12.9898 + k * 78.233) * 43758.5453; return (v - Math.floor(v) - 0.5) * 1.1 }
 
 interface Spec {
   from: number; to: number            // fenêtre (en x « monde ») à dessiner
@@ -45,10 +41,9 @@ function drawLine(ctx: CanvasRenderingContext2D, s: Spec) {
     const y0 = s.yAt(x), y1 = s.yAt(x + 0.5)
     const nx = -(y1 - y0), ny = 0.5, nl = Math.hypot(nx, ny)
     const ux = nx / nl, uy = ny / nl // normale (vers le bas)
-    const h = (THICKNESS * wobble(x)) / 2
-    const cy = y0 + jitter(x)
-    up.push([x - ux * (h + grain(x, 1)), cy - uy * (h + grain(x, 1))])
-    down.push([x + ux * (h + grain(x, 2)), cy + uy * (h + grain(x, 2))])
+    const h = THICKNESS / 2
+    up.push([x - ux * h, y0 - uy * h])
+    down.push([x + ux * h, y0 + uy * h])
     if (x >= b) break
   }
   ctx.beginPath()

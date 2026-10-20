@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react'
-import { FLAT_Y, INTRO, TIMELINE_TOP, amplitudeAt, easeInOut, easeOutCubic, reducedMotion } from '../intro'
+import { FLAT_Y, INTRO, easeInOut, reducedMotion } from '../intro'
 import { TYPE_COLOR } from '../types'
 
 /**
@@ -220,7 +220,6 @@ export default function WaveCanvas({ width, viewW, height, cy, amp, firstX, spac
     const k = width > 4500 ? 1 : DENSITY
     let raf = 0
     let cancelled = false
-    const base = FLAT_Y - TIMELINE_TOP // niveau de la ligne plate de l'écran 1, dans le repère de la timeline
     const waveAt = (x: number) => cy + amp * Math.cos((Math.PI * (x - firstX)) / spacing)
     const START_X = 56 // le trait démarre franchement sous le panneau latéral (qui commence à x = 32)
 
@@ -237,25 +236,22 @@ export default function WaveCanvas({ width, viewW, height, cy, amp, firstX, spac
       cv.width = Math.round(width * k); cv.height = Math.round(height * k)
       const ctx = cv.getContext('2d')!
       const slab = Math.min(width, viewW + 12)
+      const HEAD = 160 // fondu de la pointe du tracé
       const t0 = performance.now()
       const frame = () => {
         if (cancelled) return
         const t = (performance.now() - t0) / 1000
-        if (t >= INTRO.end) { finalDraw(); return }
-        const ext = easeOutCubic((t - INTRO.extendStart) / INTRO.extendDur)
-        const amt = amplitudeAt(t)
-        const yAt = (x: number) => base + amt * (waveAt(x) - base)
+        const p = easeInOut((t - INTRO.drawStart) / INTRO.drawDur)
+        if (p >= 1) { finalDraw(); return }
         ctx.setTransform(1, 0, 0, 1, 0, 0)
         ctx.clearRect(0, 0, slab * k, height * k)
         ctx.setTransform(k, 0, 0, k, 0, 0)
+        // la pointe part du bord gauche et sort à droite de l'écran
         drawLine(ctx, {
-          stops, gw: width, mix: Math.min(1, Math.max(0, amt)),
-          from: 0, to: slab,
-          xStart: START_X * ext,
-          xEnd: viewW + (width - viewW) * ext,
-          startFade: FLAT_START_FADE * (1 - ext),
-          endFade: FLAT_END_FADE + (220 - FLAT_END_FADE) * ext,
-          yAt, height, step: 1,
+          stops, gw: width, from: 0, to: slab,
+          xStart: START_X, xEnd: START_X + (viewW + HEAD - START_X) * p,
+          startFade: 0, endFade: HEAD,
+          yAt: waveAt, height, step: 1,
         })
         raf = requestAnimationFrame(frame)
       }

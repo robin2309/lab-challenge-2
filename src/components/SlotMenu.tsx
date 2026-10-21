@@ -21,6 +21,8 @@ interface Props {
   subject: string
   heading: string          // ex. « Remplacer Lecture de texte »
   alternatives: (t: ResourceType) => CatalogItem[]
+  /** résolution d'un conflit : ressources qui ne le recréent pas (mises en avant) */
+  compatible?: (it: CatalogItem) => boolean
   /** minutes restantes dans la séance hors ressource remplacée */
   room: number
   onPick: (it: CatalogItem) => void
@@ -32,7 +34,7 @@ interface Props {
 
 const VISIBLE = 5
 
-export default function SlotMenu({ mode, type: t0, subject, heading, alternatives, room, onPick, onFile, onClose, className = '', style }: Props) {
+export default function SlotMenu({ mode, type: t0, subject, heading, alternatives, compatible, room, onPick, onFile, onClose, className = '', style }: Props) {
   const [type, setType] = useState(t0)
   const [more, setMore] = useState(false)
   const [drag, setDrag] = useState(false)
@@ -75,12 +77,14 @@ export default function SlotMenu({ mode, type: t0, subject, heading, alternative
           {shown.map((it) => {
             const title = resolveTitle(it.title, subject)
             const over = it.duration > room
+            const ok = compatible?.(it)
             return (
-              <button key={it.type + it.title} className="sm-card" onClick={() => onPick(it)}>
+              <button key={it.type + it.title} className={'sm-card' + (ok ? ' compatible' : '')} onClick={() => onPick(it)}>
                 <div className="thumb">
                   {it.thumb ? <img src={it.thumb} alt="" /> : <FakeThumb type={it.type} title={title} />}
                   <span className="dur-pill">{it.duration} min.</span>
                   <span className={'origin-pill ' + it.origin}>{ORIGIN_LABEL[it.origin]}</span>
+                  {ok && <span className="ok-pill">✓ Compatible</span>}
                   {it.origin !== 'mine' && it.uses > 0 && (
                     <span className="uses-pill" title={`Utilisée par ${it.uses.toLocaleString('fr-FR')} enseignants`}><IconHeart />{it.uses.toLocaleString('fr-FR')}</span>
                   )}

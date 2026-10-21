@@ -500,6 +500,7 @@ export default function TimelineScreen({ course, setCourse, onHome, intro = fals
           mode={target.mode} type={target.type} subject={subject}
           heading={target.mode === 'replace' && targetRes ? `Remplacer « ${targetRes.title} »` : target.mode === 'fill' ? 'Choisir une ressource pour cet emplacement' : `Ajouter à la séance ${course.sessions.indexOf(targetSession) + 1}`}
           alternatives={alternatives}
+          compatible={fixWork ? (it) => !it.work || it.work === fixWork : undefined}
           room={course.sessionMinutes - targetSession.resources.reduce((a, r) => a + (r.id === target.id ? 0 : r.duration), 0)}
           onPick={(it) => place(target, makeResource(it, subject))}
           onFile={(f) => importFile(f, target)}

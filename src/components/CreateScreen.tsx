@@ -3,15 +3,16 @@ import Navbar from './Navbar'
 import { Circle, Star, Triangle } from './Decor'
 import { FlatLine } from './WaveCanvas'
 import Stepper from './Stepper'
+import { DEMO_SUBJECT } from '../data/generate'
 
 interface Props { onSubmit: (subject: string, classe: string) => void; leaving?: boolean }
 
 export default function CreateScreen({ onSubmit, leaving = false }: Props) {
   const [classes, setClasses] = useState(['3eme B', '5eme A', '5eme B'])
-  const [classe, setClasse] = useState('')
+  const [classe, setClasse] = useState('5eme A') // démo : formulaire pré-rempli, un clic suffit
   const [adding, setAdding] = useState(false)
   const [newClass, setNewClass] = useState('')
-  const [subject, setSubject] = useState('')
+  const [subject, setSubject] = useState(DEMO_SUBJECT)
 
   const ready = classe !== '' && subject.trim().length > 2
 
@@ -55,6 +56,7 @@ export default function CreateScreen({ onSubmit, leaving = false }: Props) {
           className="subject" value={subject} onChange={(e) => setSubject(e.target.value)}
           placeholder="Exemple : La poésie moderne, le théâtre de Molière, la figure de la sorcière…"
         />
+        <p className="demo-note">Pour cette démo, les séances portent sur le théâtre de Molière.</p>
         <button type="submit" className="btn-primary" disabled={!ready}>Créer les séances</button>
       </form>
     </>

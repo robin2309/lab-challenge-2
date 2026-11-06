@@ -92,6 +92,7 @@ input, textarea, select { font: inherit; color: inherit; }
 }
 .subject:focus { border-color: var(--tan); box-shadow: 0 0 0 4px rgba(220,194,150,.3); }
 .subject::placeholder { font-style: italic; color: #9a96a8; }
+.demo-note { margin: 8px 0 0 18px; font-size: 15px; color: #8a7d68; }
 .btn-primary {
   position: absolute; left: 50%; bottom: 36px; transform: translateX(-50%);
   height: 58px; padding: 0 40px; border-radius: 18px; background: var(--navy); color: #fff;
